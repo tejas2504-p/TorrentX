@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Text?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.torrentx.ui.MainController" styleClass="root-pane">
+    <top>
+        <HBox spacing="15" alignment="CENTER_LEFT" styleClass="header-bar">
+            <padding>
+                <Insets top="15" right="20" bottom="15" left="20"/>
+            </padding>
+            <Text text="TorrentX" styleClass="logo-text"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button text="+ Add Torrent" onAction="#handleAddTorrent" styleClass="btn, btn-primary"/>
+            <Button text="Pause" onAction="#handlePause" styleClass="btn, btn-secondary"/>
+            <Button text="Resume" onAction="#handleResume" styleClass="btn, btn-secondary"/>
+            <Button text="Remove" onAction="#handleRemove" styleClass="btn, btn-danger"/>
+        </HBox>
+    </top>
+    
+    <center>
+        <SplitPane dividerPositions="0.22" styleClass="content-pane">
+            <items>
+                <!-- Sidebar -->
+                <VBox spacing="10" styleClass="sidebar">
+                    <padding>
+                        <Insets top="15" right="10" bottom="15" left="15"/>
+                    </padding>
+                    <Label text="LIBRARY" styleClass="sidebar-title"/>
+                    <Button text="All Torrents" styleClass="sidebar-btn, active"/>
+                    <Button text="Downloading" styleClass="sidebar-btn"/>
+                    <Button text="Completed" styleClass="sidebar-btn"/>
+                    <Button text="Active" styleClass="sidebar-btn"/>
+                </VBox>
+                
+                <!-- Main Table -->
+                <VBox spacing="10" styleClass="table-container">
+                    <padding>
+                        <Insets top="15" right="15" bottom="15" left="15"/>
+                    </padding>
+                    <TableView fx:id="torrentTable" VBox.vgrow="ALWAYS" styleClass="torrent-table">
+                        <columns>
+                            <TableColumn fx:id="nameColumn" text="Name" prefWidth="250"/>
+                            <TableColumn fx:id="sizeColumn" text="Size" prefWidth="90"/>
+                            <TableColumn fx:id="progressColumn" text="Progress" prefWidth="180"/>
+                            <TableColumn fx:id="statusColumn" text="Status" prefWidth="90"/>
+                            <TableColumn fx:id="downSpeedColumn" text="Down Speed" prefWidth="100"/>
+                            <TableColumn fx:id="upSpeedColumn" text="Up Speed" prefWidth="100"/>
+                            <TableColumn fx:id="peersColumn" text="Peers" prefWidth="80"/>
+                        </columns>
+                    </TableView>
+                </VBox>
+            </items>
+        </SplitPane>
+    </center>
+    
+    <bottom>
+        <HBox spacing="20" alignment="CENTER_LEFT" styleClass="status-bar">
+            <padding>
+                <Insets top="8" right="20" bottom="8" left="20"/>
+            </padding>
+            <Label text="Status: Connected" styleClass="status-label"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label fx:id="globalSpeedLabel" text="Download: 0 KB/s  |  Upload: 0 KB/s" styleClass="status-label"/>
+        </HBox>
+    </bottom>
+</BorderPane>
