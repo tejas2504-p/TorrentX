@@ -148,15 +148,6 @@ public class StorageManagerTest {
 
         sm.writeBlock(1, 0, part2);
 
-        byte[] readBackPiece0 = sm.readBlock(0, 0, 1000);
-        java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-1");
-        byte[] computedHash0 = digest.digest(readBackPiece0);
-        byte[] expectedHash0 = multiFileMetainfo.getPieceHashes().get(0);
-        
-        System.out.println("DEBUG Piece 0 - expected: " + java.util.HexFormat.of().formatHex(expectedHash0));
-        System.out.println("DEBUG Piece 0 - computed: " + java.util.HexFormat.of().formatHex(computedHash0));
-        System.out.println("DEBUG Piece 0 - length: " + readBackPiece0.length);
-
         assertTrue(sm.verifyPiece(0));
         assertTrue(sm.verifyPiece(1));
 

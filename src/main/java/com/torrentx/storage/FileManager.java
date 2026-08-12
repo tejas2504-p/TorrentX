@@ -17,8 +17,13 @@ public class FileManager {
         this.fileSpans = new ArrayList<>();
         long currentOffset = 0;
         
+        File torrentDir = baseDir;
+        if (metainfo.isMultiFile()) {
+            torrentDir = new File(baseDir, metainfo.getName());
+        }
+        
         for (MetainfoFile mFile : metainfo.getFiles()) {
-            File targetFile = baseDir;
+            File targetFile = torrentDir;
             for (String part : mFile.getPath()) {
                 targetFile = new File(targetFile, part);
             }
