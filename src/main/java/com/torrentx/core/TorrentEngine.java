@@ -6,8 +6,8 @@ import com.torrentx.peer.PeerConnection;
 import com.torrentx.peer.PeerService;
 import com.torrentx.peer.PeerWireMessage;
 import com.torrentx.storage.StorageService;
-import com.torrentx.tracker.HttpTrackerClient;
-import com.torrentx.tracker.UdpTrackerClient;
+import com.torrentx.tracker.TrackerClient;
+import com.torrentx.tracker.TrackerClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +47,7 @@ public class TorrentEngine implements PeerConnection.PeerConnectionListener {
         void onError(String message);
     }
 
-    public TorrentEngine(Metainfo metainfo, File downloadDir, int localPort,
+    public TorrentEngine(Metainfo metainfo, byte[] localPeerId, File downloadDir, int localPort,
                          StorageService storageManager, PeerService peerManager, PieceSelectionStrategy pieceSelector,
                          TorrentStateListener stateListener) {
         this.metainfo = metainfo;
@@ -55,7 +55,7 @@ public class TorrentEngine implements PeerConnection.PeerConnectionListener {
         this.localPort = localPort;
         this.stateListener = stateListener;
 
-        this.localPeerId = generatePeerId();
+        this.localPeerId = localPeerId;
         this.myBitfield = new BitSet(metainfo.getPieceCount());
         
         this.storageManager = storageManager;
@@ -134,13 +134,8 @@ public class TorrentEngine implements PeerConnection.PeerConnectionListener {
 
             String event = (left == 0) ? "completed" : "started";
 
-            if (metainfo.getAnnounce().startsWith("udp://")) {
-                UdpTrackerClient trackerClient = new UdpTrackerClient();
-                peers = trackerClient.announce(metainfo, localPeerId, localPort, bytesUploaded, bytesDownloaded, left, event);
-            } else {
-                HttpTrackerClient trackerClient = new HttpTrackerClient();
-                peers = trackerClient.announce(metainfo, localPeerId, localPort, bytesUploaded, bytesDownloaded, left, event);
-            }
+            TrackerClient trackerClient = TrackerClientFactory.getClient(metainfo.getAnnounce());
+            peers = trackerClient.announce(metainfo, localPeerId, localPort, bytesUploaded, bytesDownloaded, left, event);
 
             peerManager.connectToPeers(peers);
         } catch (Exception e) {

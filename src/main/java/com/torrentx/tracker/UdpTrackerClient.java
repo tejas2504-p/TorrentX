@@ -12,12 +12,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class UdpTrackerClient {
+public class UdpTrackerClient implements TrackerClient {
     private static final Logger logger = LoggerFactory.getLogger(UdpTrackerClient.class);
     private static final long CONNECTION_ID_MAGIC = 0x41727101980L;
     private final Random random = new Random();
 
-    public List<Peer> announce(Metainfo metainfo, byte[] peerId, int port, long uploaded, long downloaded, long left, String event) throws IOException {
+    @Override
+    public List<Peer> announce(Metainfo metainfo, byte[] peerId, int port, long uploaded, long downloaded, long left, String event) throws Exception {
         URI announceUri;
         try {
             announceUri = new URI(metainfo.getAnnounce());

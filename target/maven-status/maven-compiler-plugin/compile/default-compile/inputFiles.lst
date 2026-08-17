@@ -17,6 +17,8 @@ C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\stor
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\storage\StorageManager.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\storage\StorageService.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\tracker\HttpTrackerClient.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\tracker\TrackerClient.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\tracker\TrackerClientFactory.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\tracker\UdpTrackerClient.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\ui\MainController.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\ui\TorrentRow.java

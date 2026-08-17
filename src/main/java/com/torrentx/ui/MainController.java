@@ -104,7 +104,7 @@ public class MainController {
             PeerService peerManager = new PeerManager(metainfo, localPeerId, localPort);
             PieceSelectionStrategy pieceSelector = new PieceSelector(metainfo.getPieceCount());
 
-            TorrentEngine engine = new TorrentEngine(metainfo, downloadDir, localPort,
+            TorrentEngine engine = new TorrentEngine(metainfo, localPeerId, downloadDir, localPort,
                     storageManager, peerManager, pieceSelector, new TorrentEngine.TorrentStateListener() {
                 @Override
                 public void onProgressUpdate(double progress, double downloadSpeed, double uploadSpeed, int activePeers) {

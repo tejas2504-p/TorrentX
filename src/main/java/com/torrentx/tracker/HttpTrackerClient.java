@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class HttpTrackerClient {
+public class HttpTrackerClient implements TrackerClient {
     private static final Logger logger = LoggerFactory.getLogger(HttpTrackerClient.class);
     private final HttpClient httpClient;
 
@@ -26,7 +26,8 @@ public class HttpTrackerClient {
                 .build();
     }
 
-    public List<Peer> announce(Metainfo metainfo, byte[] peerId, int port, long uploaded, long downloaded, long left, String event) throws IOException, InterruptedException, BencodeException {
+    @Override
+    public List<Peer> announce(Metainfo metainfo, byte[] peerId, int port, long uploaded, long downloaded, long left, String event) throws Exception {
         String infoHashEncoded = urlEncodeBytes(metainfo.getInfoHash());
         String peerIdEncoded = urlEncodeBytes(peerId);
 

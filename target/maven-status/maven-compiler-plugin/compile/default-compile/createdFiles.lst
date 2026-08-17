@@ -7,6 +7,8 @@ com\torrentx\ui\MainController.class
 com\torrentx\ui\TorrentXApp.class
 com\torrentx\bencode\MetainfoFile.class
 com\torrentx\core\PieceSelectionStrategy.class
+com\torrentx\tracker\TrackerClientFactory.class
+com\torrentx\tracker\TrackerClient.class
 com\torrentx\peer\PeerManager.class
 com\torrentx\storage\FileManager.class
 com\torrentx\core\ActivePiece.class
