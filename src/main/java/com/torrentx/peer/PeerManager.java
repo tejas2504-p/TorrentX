@@ -13,13 +13,13 @@ import java.nio.channels.SocketChannel;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class PeerManager {
+public class PeerManager implements PeerService {
     private static final Logger logger = LoggerFactory.getLogger(PeerManager.class);
 
     private final Metainfo metainfo;
     private final byte[] localPeerId;
     private final int port;
-    private final PeerConnection.PeerConnectionListener peerListener;
+    private PeerConnection.PeerConnectionListener peerListener;
 
     private Selector selector;
     private ServerSocketChannel serverChannel;
@@ -28,11 +28,22 @@ public class PeerManager {
     private volatile boolean running = false;
     private Thread selectorThread;
 
+    public PeerManager(Metainfo metainfo, byte[] localPeerId, int port) {
+        this.metainfo = metainfo;
+        this.localPeerId = localPeerId;
+        this.port = port;
+    }
+
     public PeerManager(Metainfo metainfo, byte[] localPeerId, int port, PeerConnection.PeerConnectionListener peerListener) {
         this.metainfo = metainfo;
         this.localPeerId = localPeerId;
         this.port = port;
         this.peerListener = peerListener;
+    }
+
+    @Override
+    public void setListener(PeerConnection.PeerConnectionListener listener) {
+        this.peerListener = listener;
     }
 
     public synchronized void start() throws IOException {

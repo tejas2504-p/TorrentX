@@ -96,68 +96,71 @@ public class StorageManagerTest {
 
     @Test
     public void testSingleFileAllocationAndWrite() throws IOException {
-        StorageManager sm = new StorageManager(tempDir, singleFileMetainfo);
-        sm.initialize();
+        try (StorageManager sm = new StorageManager(tempDir, singleFileMetainfo)) {
+            sm.initialize();
 
-        File expectedFile = new File(tempDir, "single.txt");
-        assertTrue(expectedFile.exists());
-        assertEquals(1000L, expectedFile.length());
+            File expectedFile = new File(tempDir, "single.txt");
+            assertTrue(expectedFile.exists());
+            assertEquals(1000L, expectedFile.length());
 
-        byte[] blockData = "hello world".getBytes(StandardCharsets.UTF_8);
-        sm.writeBlock(0, 100, blockData);
+            byte[] blockData = "hello world".getBytes(StandardCharsets.UTF_8);
+            sm.writeBlock(0, 100, blockData);
 
-        byte[] readBack = sm.readBlock(0, 100, blockData.length);
-        assertArrayEquals(blockData, readBack);
+            byte[] readBack = sm.readBlock(0, 100, blockData.length);
+            assertArrayEquals(blockData, readBack);
+        }
     }
 
     @Test
     public void testPieceVerificationSuccessAndFailure() throws IOException {
-        StorageManager sm = new StorageManager(tempDir, singleFileMetainfo);
-        sm.initialize();
+        try (StorageManager sm = new StorageManager(tempDir, singleFileMetainfo)) {
+            sm.initialize();
 
-        byte[] piece0Data = new byte[1000];
-        Arrays.fill(piece0Data, (byte) 'a');
-        sm.writeBlock(0, 0, piece0Data);
+            byte[] piece0Data = new byte[1000];
+            Arrays.fill(piece0Data, (byte) 'a');
+            sm.writeBlock(0, 0, piece0Data);
 
-        assertTrue(sm.verifyPiece(0));
+            assertTrue(sm.verifyPiece(0));
 
-        sm.writeBlock(0, 500, "corrupted".getBytes(StandardCharsets.UTF_8));
-        assertFalse(sm.verifyPiece(0));
+            sm.writeBlock(0, 500, "corrupted".getBytes(StandardCharsets.UTF_8));
+            assertFalse(sm.verifyPiece(0));
+        }
     }
 
     @Test
     public void testMultiFileBoundaryWritesAndReads() throws Exception {
-        StorageManager sm = new StorageManager(tempDir, multiFileMetainfo);
-        sm.initialize();
+        try (StorageManager sm = new StorageManager(tempDir, multiFileMetainfo)) {
+            sm.initialize();
 
-        File file1 = new File(tempDir, "multi_project/file1.dat");
-        File file2 = new File(tempDir, "multi_project/subdir/file2.dat");
+            File file1 = new File(tempDir, "multi_project/file1.dat");
+            File file2 = new File(tempDir, "multi_project/subdir/file2.dat");
 
-        assertTrue(file1.exists());
-        assertTrue(file2.exists());
-        assertEquals(600L, file1.length());
-        assertEquals(800L, file2.length());
+            assertTrue(file1.exists());
+            assertTrue(file2.exists());
+            assertEquals(600L, file1.length());
+            assertEquals(800L, file2.length());
 
-        byte[] part1 = new byte[600];
-        Arrays.fill(part1, (byte) 'x');
-        byte[] part2 = new byte[400];
-        Arrays.fill(part2, (byte) 'y');
+            byte[] part1 = new byte[600];
+            Arrays.fill(part1, (byte) 'x');
+            byte[] part2 = new byte[400];
+            Arrays.fill(part2, (byte) 'y');
 
-        sm.writeBlock(0, 0, part1);
-        sm.writeBlock(0, 600, part2);
+            sm.writeBlock(0, 0, part1);
+            sm.writeBlock(0, 600, part2);
 
-        sm.writeBlock(1, 0, part2);
+            sm.writeBlock(1, 0, part2);
 
-        assertTrue(sm.verifyPiece(0));
-        assertTrue(sm.verifyPiece(1));
+            assertTrue(sm.verifyPiece(0));
+            assertTrue(sm.verifyPiece(1));
 
-        byte[] readBackFile1 = sm.readBlock(0, 0, 600);
-        assertArrayEquals(part1, readBackFile1);
+            byte[] readBackFile1 = sm.readBlock(0, 0, 600);
+            assertArrayEquals(part1, readBackFile1);
 
-        byte[] readBackFile2Part1 = sm.readBlock(0, 600, 400);
-        assertArrayEquals(part2, readBackFile2Part1);
-        
-        byte[] readBackFile2Part2 = sm.readBlock(1, 0, 400);
-        assertArrayEquals(part2, readBackFile2Part2);
+            byte[] readBackFile2Part1 = sm.readBlock(0, 600, 400);
+            assertArrayEquals(part2, readBackFile2Part1);
+
+            byte[] readBackFile2Part2 = sm.readBlock(1, 0, 400);
+            assertArrayEquals(part2, readBackFile2Part2);
+        }
     }
 }

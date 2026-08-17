@@ -20,12 +20,12 @@ public class PeerConnection {
     private final SocketChannel socketChannel;
     private final Metainfo metainfo;
     
-    private boolean handshakeSent = false;
-    private boolean handshakeReceived = false;
-    private boolean peerChoking = true;
-    private boolean peerInterested = false;
-    private boolean amChoking = true;
-    private boolean amInterested = false;
+    private volatile boolean handshakeSent = false;
+    private volatile boolean handshakeReceived = false;
+    private volatile boolean peerChoking = true;
+    private volatile boolean peerInterested = false;
+    private volatile boolean amChoking = true;
+    private volatile boolean amInterested = false;
     
     private final BitSet peerBitfield;
     private final Queue<ByteBuffer> sendQueue = new LinkedList<>();
@@ -81,12 +81,12 @@ public class PeerConnection {
         this.amChoking = choking;
     }
 
-    public boolean hasPiece(int pieceIndex) {
+    public synchronized boolean hasPiece(int pieceIndex) {
         return peerBitfield.get(pieceIndex);
     }
     
-    public BitSet getPeerBitfield() {
-        return peerBitfield;
+    public synchronized BitSet getPeerBitfield() {
+        return (BitSet) peerBitfield.clone();
     }
 
     public synchronized void queueMessage(PeerWireMessage message) {
@@ -230,7 +230,9 @@ public class PeerConnection {
                 }
                 int pieceIndex = ByteBuffer.wrap(msg.getPayload()).getInt();
                 if (pieceIndex >= 0 && pieceIndex < metainfo.getPieceCount()) {
-                    peerBitfield.set(pieceIndex);
+                    synchronized (this) {
+                        peerBitfield.set(pieceIndex);
+                    }
                     listener.onHave(this, pieceIndex);
                 }
                 break;
@@ -240,15 +242,18 @@ public class PeerConnection {
                 if (bitfieldBytes.length != expectedBytes) {
                     throw new IOException("Bitfield size mismatch: expected " + expectedBytes + " bytes, got " + bitfieldBytes.length);
                 }
-                for (int i = 0; i < metainfo.getPieceCount(); i++) {
-                    int byteIdx = i / 8;
-                    int bitIdx = 7 - (i % 8);
-                    boolean hasPiece = ((bitfieldBytes[byteIdx] >> bitIdx) & 0x01) == 1;
-                    if (hasPiece) {
-                        peerBitfield.set(i);
+                synchronized (this) {
+                    peerBitfield.clear();
+                    for (int i = 0; i < metainfo.getPieceCount(); i++) {
+                        int byteIdx = i / 8;
+                        int bitIdx = 7 - (i % 8);
+                        boolean hasPiece = ((bitfieldBytes[byteIdx] >> bitIdx) & 0x01) == 1;
+                        if (hasPiece) {
+                            peerBitfield.set(i);
+                        }
                     }
                 }
-                listener.onBitfield(this, peerBitfield);
+                listener.onBitfield(this, getPeerBitfield());
                 break;
             case 6:
                 if (msg.getPayload().length != 12) {

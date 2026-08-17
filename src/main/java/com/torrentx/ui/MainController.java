@@ -2,7 +2,13 @@ package com.torrentx.ui;
 
 import com.torrentx.bencode.BencodeDecoder;
 import com.torrentx.bencode.Metainfo;
+import com.torrentx.core.PieceSelectionStrategy;
+import com.torrentx.core.PieceSelector;
 import com.torrentx.core.TorrentEngine;
+import com.torrentx.peer.PeerManager;
+import com.torrentx.peer.PeerService;
+import com.torrentx.storage.StorageManager;
+import com.torrentx.storage.StorageService;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -92,7 +98,14 @@ public class MainController {
                     null
             );
 
-            TorrentEngine engine = new TorrentEngine(metainfo, downloadDir, 6881, new TorrentEngine.TorrentStateListener() {
+            int localPort = 6881;
+            byte[] localPeerId = TorrentEngine.generatePeerId();
+            StorageService storageManager = new StorageManager(downloadDir, metainfo);
+            PeerService peerManager = new PeerManager(metainfo, localPeerId, localPort);
+            PieceSelectionStrategy pieceSelector = new PieceSelector(metainfo.getPieceCount());
+
+            TorrentEngine engine = new TorrentEngine(metainfo, downloadDir, localPort,
+                    storageManager, peerManager, pieceSelector, new TorrentEngine.TorrentStateListener() {
                 @Override
                 public void onProgressUpdate(double progress, double downloadSpeed, double uploadSpeed, int activePeers) {
                     Platform.runLater(() -> {
@@ -121,6 +134,8 @@ public class MainController {
                     });
                 }
             });
+
+            peerManager.setListener(engine);
 
             TorrentRow activeRow = new TorrentRow(
                     metainfo.getName(),

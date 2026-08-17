@@ -10,7 +10,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
-public class StorageManager {
+public class StorageManager implements StorageService {
     private static final Logger logger = LoggerFactory.getLogger(StorageManager.class);
 
     private final Metainfo metainfo;
@@ -63,5 +63,10 @@ public class StorageManager {
             return remainder == 0 ? metainfo.getPieceLength() : remainder;
         }
         return metainfo.getPieceLength();
+    }
+
+    @Override
+    public void close() throws IOException {
+        fileManager.close();
     }
 }

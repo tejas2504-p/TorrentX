@@ -1,10 +1,12 @@
 com\torrentx\bencode\Metainfo.class
 com\torrentx\bencode\BencodeEncoder.class
 com\torrentx\ui\MainController$1.class
+com\torrentx\peer\PeerService.class
 com\torrentx\core\TorrentEngine.class
 com\torrentx\ui\MainController.class
 com\torrentx\ui\TorrentXApp.class
 com\torrentx\bencode\MetainfoFile.class
+com\torrentx\core\PieceSelectionStrategy.class
 com\torrentx\peer\PeerManager.class
 com\torrentx\storage\FileManager.class
 com\torrentx\core\ActivePiece.class
@@ -17,6 +19,7 @@ com\torrentx\ui\TorrentRow.class
 com\torrentx\peer\PeerWireMessage.class
 com\torrentx\tracker\UdpTrackerClient.class
 com\torrentx\core\PieceSelector.class
+com\torrentx\storage\StorageService.class
 com\torrentx\tracker\HttpTrackerClient.class
 com\torrentx\storage\StorageManager.class
 com\torrentx\peer\PeerConnection.class

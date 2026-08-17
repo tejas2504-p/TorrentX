@@ -7,14 +7,18 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class FileManager {
     private final List<FileSpan> fileSpans;
     private final long totalLength;
+    private final Map<File, RandomAccessFile> openFiles;
 
     public FileManager(File baseDir, Metainfo metainfo) {
         this.fileSpans = new ArrayList<>();
+        this.openFiles = new HashMap<>();
         long currentOffset = 0;
         
         File torrentDir = baseDir;
@@ -70,10 +74,9 @@ public class FileManager {
                 long fileOffset = currentPos - spanStart;
                 long bytesToCopy = Math.min(bytesRemaining, spanEnd - currentPos);
 
-                try (RandomAccessFile raf = new RandomAccessFile(span.getFile(), "rw")) {
-                    raf.seek(fileOffset);
-                    raf.write(data, bytesWritten, (int) bytesToCopy);
-                }
+                RandomAccessFile raf = getOrOpenFile(span.getFile());
+                raf.seek(fileOffset);
+                raf.write(data, bytesWritten, (int) bytesToCopy);
 
                 bytesWritten += bytesToCopy;
                 bytesRemaining -= bytesToCopy;
@@ -103,10 +106,9 @@ public class FileManager {
                 long fileOffset = currentPos - spanStart;
                 long bytesToCopy = Math.min(bytesRemaining, spanEnd - currentPos);
 
-                try (RandomAccessFile raf = new RandomAccessFile(span.getFile(), "r")) {
-                    raf.seek(fileOffset);
-                    raf.readFully(buffer, bytesRead, (int) bytesToCopy);
-                }
+                RandomAccessFile raf = getOrOpenFile(span.getFile());
+                raf.seek(fileOffset);
+                raf.readFully(buffer, bytesRead, (int) bytesToCopy);
 
                 bytesRead += bytesToCopy;
                 bytesRemaining -= bytesToCopy;
@@ -114,5 +116,23 @@ public class FileManager {
         }
 
         return buffer;
+    }
+
+    private RandomAccessFile getOrOpenFile(File file) throws IOException {
+        RandomAccessFile raf = openFiles.get(file);
+        if (raf == null) {
+            raf = new RandomAccessFile(file, "rw");
+            openFiles.put(file, raf);
+        }
+        return raf;
+    }
+
+    public synchronized void close() throws IOException {
+        for (RandomAccessFile raf : openFiles.values()) {
+            if (raf != null) {
+                raf.close();
+            }
+        }
+        openFiles.clear();
     }
 }

@@ -3,9 +3,9 @@ package com.torrentx.core;
 import com.torrentx.bencode.Metainfo;
 import com.torrentx.peer.Peer;
 import com.torrentx.peer.PeerConnection;
-import com.torrentx.peer.PeerManager;
+import com.torrentx.peer.PeerService;
 import com.torrentx.peer.PeerWireMessage;
-import com.torrentx.storage.StorageManager;
+import com.torrentx.storage.StorageService;
 import com.torrentx.tracker.HttpTrackerClient;
 import com.torrentx.tracker.UdpTrackerClient;
 import org.slf4j.Logger;
@@ -24,9 +24,9 @@ public class TorrentEngine implements PeerConnection.PeerConnectionListener {
     private final int localPort;
     private final File downloadDir;
 
-    private final StorageManager storageManager;
-    private final PeerManager peerManager;
-    private final PieceSelector pieceSelector;
+    private final StorageService storageManager;
+    private final PeerService peerManager;
+    private final PieceSelectionStrategy pieceSelector;
 
     private final ExecutorService diskExecutor = Executors.newSingleThreadExecutor();
     private final ScheduledExecutorService trackerScheduler = Executors.newSingleThreadScheduledExecutor();
@@ -47,7 +47,9 @@ public class TorrentEngine implements PeerConnection.PeerConnectionListener {
         void onError(String message);
     }
 
-    public TorrentEngine(Metainfo metainfo, File downloadDir, int localPort, TorrentStateListener stateListener) {
+    public TorrentEngine(Metainfo metainfo, File downloadDir, int localPort,
+                         StorageService storageManager, PeerService peerManager, PieceSelectionStrategy pieceSelector,
+                         TorrentStateListener stateListener) {
         this.metainfo = metainfo;
         this.downloadDir = downloadDir;
         this.localPort = localPort;
@@ -56,12 +58,12 @@ public class TorrentEngine implements PeerConnection.PeerConnectionListener {
         this.localPeerId = generatePeerId();
         this.myBitfield = new BitSet(metainfo.getPieceCount());
         
-        this.storageManager = new StorageManager(downloadDir, metainfo);
-        this.peerManager = new PeerManager(metainfo, localPeerId, localPort, this);
-        this.pieceSelector = new PieceSelector(metainfo.getPieceCount());
+        this.storageManager = storageManager;
+        this.peerManager = peerManager;
+        this.pieceSelector = pieceSelector;
     }
 
-    private byte[] generatePeerId() {
+    public static byte[] generatePeerId() {
         byte[] id = new byte[20];
         byte[] prefix = "-TX0001-".getBytes();
         System.arraycopy(prefix, 0, id, 0, prefix.length);
@@ -93,6 +95,11 @@ public class TorrentEngine implements PeerConnection.PeerConnectionListener {
         peerManager.stop();
         trackerScheduler.shutdown();
         diskExecutor.shutdown();
+        try {
+            storageManager.close();
+        } catch (IOException e) {
+            logger.error("Failed to close storage service", e);
+        }
         logger.info("TorrentEngine stopped");
     }
 
@@ -210,7 +217,7 @@ public class TorrentEngine implements PeerConnection.PeerConnectionListener {
             return;
         }
 
-        int pieceIdx = pieceSelector.selectRarestPiece(conn, myBitfield, activePieces, peerManager.getActiveConnections());
+        int pieceIdx = pieceSelector.selectPiece(conn, myBitfield, activePieces, peerManager.getActiveConnections());
         if (pieceIdx == -1) {
             for (ActivePiece ap : activePieces.values()) {
                 if (conn.hasPiece(ap.getIndex())) {
