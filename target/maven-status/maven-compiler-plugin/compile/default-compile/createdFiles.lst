@@ -1,3 +1,4 @@
+com\torrentx\TorrentClient.class
 com\torrentx\gui\TorrentXApp.class
 com\torrentx\bencode\package-info.class
 com\torrentx\tracker\package-info.class
@@ -10,4 +11,5 @@ com\torrentx\gui\MainController.class
 com\torrentx\torrent\package-info.class
 com\torrentx\network\package-info.class
 com\torrentx\utils\package-info.class
+com\torrentx\core\ClientManager.class
 com\torrentx\storage\package-info.class
