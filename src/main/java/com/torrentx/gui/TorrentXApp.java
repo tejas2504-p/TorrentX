@@ -1,4 +1,4 @@
-package com.torrentx.ui;
+package com.torrentx.gui;
 
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;

@@ -1,8 +1,13 @@
-com\torrentx\ui\TorrentRow.class
+com\torrentx\gui\TorrentXApp.class
 com\torrentx\bencode\package-info.class
 com\torrentx\tracker\package-info.class
+com\torrentx\gui\package-info.class
 com\torrentx\core\package-info.class
 com\torrentx\peer\package-info.class
+com\torrentx\security\package-info.class
+com\torrentx\gui\TorrentRow.class
+com\torrentx\gui\MainController.class
+com\torrentx\torrent\package-info.class
+com\torrentx\network\package-info.class
+com\torrentx\utils\package-info.class
 com\torrentx\storage\package-info.class
-com\torrentx\ui\MainController.class
-com\torrentx\ui\TorrentXApp.class

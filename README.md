@@ -27,12 +27,15 @@ TorrentX/
 
 ## Architectural Package Layout (`com.torrentx`)
 To maintain high modularity and separation of concerns, TorrentX is structured into the following packages:
-- **`com.torrentx.bencode`**: Bencode parser, encoder, and metainfo (.torrent) file decoders.
-- **`com.torrentx.core`**: Core torrent engine, piece management, selection algorithms, and state persistence.
-- **`com.torrentx.tracker`**: Communication clients for HTTP and UDP trackers to coordinate peer finding.
-- **`com.torrentx.peer`**: Peer networking services, handshakes, TCP connection management, and wire message protocol handler.
-- **`com.torrentx.storage`**: File management system, storage allocation, block writes/reads, and verification of integrity.
-- **`com.torrentx.ui`**: Graphical user interface components, views, layouts, and controllers using JavaFX.
+- **`com.torrentx.core`**: Core engine orchestrating components, state machines, and torrent session flow.
+- **`com.torrentx.torrent`**: Data structures representing .torrent metadata, tracker responses, and bencode parser.
+- **`com.torrentx.tracker`**: Communication protocol handlers for HTTP/UDP trackers.
+- **`com.torrentx.peer`**: BitTorrent peer protocol, connection states, choke/interest mechanisms, and handshakes.
+- **`com.torrentx.network`**: Low-level TCP and UDP network transport layers.
+- **`com.torrentx.storage`**: Random access file storage, piece verification, and multi-file mapping.
+- **`com.torrentx.security`**: SHA-1 cryptographic verifications and message digest operations.
+- **`com.torrentx.gui`**: User interface components, layout FXMLs, CSS, and interactive controllers (JavaFX).
+- **`com.torrentx.utils`**: General helper libraries, data formatting, byte operations, and common constants.
 
 ## Build and Run
 
