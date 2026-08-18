@@ -1,6 +1,5 @@
 package com.torrentx.ui;
 
-import com.torrentx.core.TorrentEngine;
 import javafx.beans.property.*;
 
 public class TorrentRow {
@@ -11,9 +10,8 @@ public class TorrentRow {
     private final StringProperty downSpeed;
     private final StringProperty upSpeed;
     private final StringProperty peers;
-    private final TorrentEngine engine;
 
-    public TorrentRow(String name, String size, double progress, String status, String downSpeed, String upSpeed, String peers, TorrentEngine engine) {
+    public TorrentRow(String name, String size, double progress, String status, String downSpeed, String upSpeed, String peers) {
         this.name = new SimpleStringProperty(name);
         this.size = new SimpleStringProperty(size);
         this.progress = new SimpleDoubleProperty(progress);
@@ -21,7 +19,6 @@ public class TorrentRow {
         this.downSpeed = new SimpleStringProperty(downSpeed);
         this.upSpeed = new SimpleStringProperty(upSpeed);
         this.peers = new SimpleStringProperty(peers);
-        this.engine = engine;
     }
 
     public StringProperty nameProperty() { return name; }
@@ -31,6 +28,4 @@ public class TorrentRow {
     public StringProperty downSpeedProperty() { return downSpeed; }
     public StringProperty upSpeedProperty() { return upSpeed; }
     public StringProperty peersProperty() { return peers; }
-
-    public TorrentEngine getEngine() { return engine; }
 }
