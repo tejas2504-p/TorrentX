@@ -47,6 +47,16 @@ public class Logger {
     }
 
     /**
+     * Log a debug message with arguments.
+     *
+     * @param format the format string.
+     * @param arguments the arguments list.
+     */
+    public void debug(String format, Object... arguments) {
+        slf4jLogger.debug(format, arguments);
+    }
+
+    /**
      * Log a warning message.
      *
      * @param message the message string.
@@ -56,7 +66,36 @@ public class Logger {
     }
 
     /**
+     * Log a warning message with arguments.
+     *
+     * @param format the format string.
+     * @param arguments the arguments list.
+     */
+    public void warn(String format, Object... arguments) {
+        slf4jLogger.warn(format, arguments);
+    }
+
+    /**
      * Log an error message.
+     *
+     * @param message the message string.
+     */
+    public void error(String message) {
+        slf4jLogger.error(message);
+    }
+
+    /**
+     * Log an error message with arguments.
+     *
+     * @param format the format string.
+     * @param arguments the arguments list.
+     */
+    public void error(String format, Object... arguments) {
+        slf4jLogger.error(format, arguments);
+    }
+
+    /**
+     * Log an error message with a cause.
      *
      * @param message the message string.
      * @param throwable the exception cause.
