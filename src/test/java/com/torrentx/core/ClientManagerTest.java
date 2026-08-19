@@ -45,4 +45,16 @@ class ClientManagerTest {
         clientManager.stop();
         assertFalse(clientManager.isRunning(), "ClientManager should remain stopped.");
     }
+
+    @Test
+    void testStartWithCustomConfig() {
+        com.torrentx.utils.Config customConfig = new com.torrentx.utils.Config();
+        // customConfig has defaults since it is newly instantiated
+        ClientManager customManager = new ClientManager(customConfig);
+        assertFalse(customManager.isRunning());
+        customManager.start();
+        assertTrue(customManager.isRunning());
+        customManager.stop();
+        assertFalse(customManager.isRunning());
+    }
 }

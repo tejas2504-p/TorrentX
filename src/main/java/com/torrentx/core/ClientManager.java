@@ -1,5 +1,6 @@
 package com.torrentx.core;
 
+import com.torrentx.utils.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -11,13 +12,27 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ClientManager {
     private static final Logger logger = LoggerFactory.getLogger(ClientManager.class);
     
+    private final Config config;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     /**
-     * Initializes a new ClientManager.
+     * Initializes a new ClientManager loading default configurations.
      */
     public ClientManager() {
-        logger.debug("ClientManager instantiated.");
+        Config defaultConfig = new Config();
+        defaultConfig.loadDefault();
+        this.config = defaultConfig;
+        logger.debug("ClientManager instantiated with default configurations.");
+    }
+
+    /**
+     * Initializes a new ClientManager with a specific Config instance.
+     *
+     * @param config the configuration instance.
+     */
+    public ClientManager(Config config) {
+        this.config = config != null ? config : new Config();
+        logger.debug("ClientManager instantiated with custom configurations.");
     }
 
     /**
@@ -30,7 +45,7 @@ public class ClientManager {
             return;
         }
 
-        logger.info("Starting TorrentX Client core services...");
+        logger.info("Starting {} v{} core services...", config.getClientName(), config.getClientVersion());
         
         // TODO: In future phases, initialize core components here (e.g., storage, engine, network)
         
