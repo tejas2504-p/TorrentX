@@ -47,60 +47,31 @@ public class MainController {
 
         torrentTable.setItems(torrentList);
 
-        // Add a placeholder dummy torrent to verify UI bindings and layout
-        torrentList.add(new TorrentRow(
-                "TorrentX_Project_Foundation_Demo.zip",
-                "128.5 MB",
-                0.42,
-                "Downloading",
-                "1.2 MB/s",
-                "45.2 KB/s",
-                "12"
-        ));
-        
-        logger.info("MainController initialized successfully with dummy data.");
+        // TODO: In future phases, load active torrents from client manager
+        logger.info("MainController initialized successfully.");
     }
 
     @FXML
     private void handleAddTorrent() {
-        logger.info("Add Torrent button clicked (stub action).");
-        Alert alert = new Alert(Alert.AlertType.INFORMATION, "Add Torrent feature will be implemented in a future phase.", ButtonType.OK);
-        alert.showAndWait();
+        // TODO: Implement torrent adding logic in future phases
+        throw new UnsupportedOperationException("Adding torrent is not implemented yet.");
     }
 
     @FXML
     private void handlePause() {
-        logger.info("Pause button clicked (stub action).");
-        TorrentRow selected = torrentTable.getSelectionModel().getSelectedItem();
-        if (selected != null) {
-            selected.statusProperty().set("Paused");
-            selected.downSpeedProperty().set("0 KB/s");
-            selected.upSpeedProperty().set("0 KB/s");
-            selected.peersProperty().set("0");
-            logger.info("Paused torrent: {}", selected.nameProperty().get());
-        }
+        // TODO: Implement pause logic in future phases
+        throw new UnsupportedOperationException("Pausing torrent is not implemented yet.");
     }
 
     @FXML
     private void handleResume() {
-        logger.info("Resume button clicked (stub action).");
-        TorrentRow selected = torrentTable.getSelectionModel().getSelectedItem();
-        if (selected != null) {
-            selected.statusProperty().set("Downloading");
-            selected.downSpeedProperty().set("1.5 MB/s");
-            selected.upSpeedProperty().set("50.0 KB/s");
-            selected.peersProperty().set("15");
-            logger.info("Resumed torrent: {}", selected.nameProperty().get());
-        }
+        // TODO: Implement resume logic in future phases
+        throw new UnsupportedOperationException("Resuming torrent is not implemented yet.");
     }
 
     @FXML
     private void handleRemove() {
-        logger.info("Remove button clicked (stub action).");
-        TorrentRow selected = torrentTable.getSelectionModel().getSelectedItem();
-        if (selected != null) {
-            torrentList.remove(selected);
-            logger.info("Removed torrent: {}", selected.nameProperty().get());
-        }
+        // TODO: Implement remove logic in future phases
+        throw new UnsupportedOperationException("Removing torrent is not implemented yet.");
     }
 }
