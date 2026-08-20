@@ -119,12 +119,40 @@ class BencodeDecoderTest {
         assertEquals(2, list.size());
         assertArrayEquals("spam".getBytes(StandardCharsets.US_ASCII), (byte[]) list.get(0));
         assertEquals(42L, list.get(1));
+
+        // Nested lists
+        decoder = new BencodeDecoder("ll4:spamee".getBytes(StandardCharsets.US_ASCII));
+        List<?> nestedList = (List<?>) decoder.decode();
+        assertEquals(1, nestedList.size());
+        List<?> innerList = (List<?>) nestedList.get(0);
+        assertEquals(1, innerList.size());
+        assertArrayEquals("spam".getBytes(StandardCharsets.US_ASCII), (byte[]) innerList.get(0));
+
+        // Dictionaries inside lists
+        decoder = new BencodeDecoder("ld3:bar4:spamee".getBytes(StandardCharsets.US_ASCII));
+        List<?> dictsInList = (List<?>) decoder.decode();
+        assertEquals(1, dictsInList.size());
+        Map<?, ?> innerDict = (Map<?, ?>) dictsInList.get(0);
+        assertEquals(1, innerDict.size());
+        assertArrayEquals("spam".getBytes(StandardCharsets.US_ASCII), (byte[]) innerDict.get("bar"));
+
+        // Lists inside dictionaries
+        decoder = new BencodeDecoder("d4:listl4:spami42eee".getBytes(StandardCharsets.US_ASCII));
+        Map<?, ?> listInDict = (Map<?, ?>) decoder.decode();
+        assertEquals(1, listInDict.size());
+        List<?> innerList2 = (List<?>) listInDict.get("list");
+        assertEquals(2, innerList2.size());
+        assertArrayEquals("spam".getBytes(StandardCharsets.US_ASCII), (byte[]) innerList2.get(0));
+        assertEquals(42L, innerList2.get(1));
     }
 
     @Test
     void testDecodeInvalidLists() {
-        // Unclosed list
+        // Unclosed list (missing terminating 'e')
         assertThrows(BencodeException.class, () -> new BencodeDecoder("l4:spami42e".getBytes(StandardCharsets.US_ASCII)).decode());
+        
+        // Truncated list input (just 'l')
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("l".getBytes(StandardCharsets.US_ASCII)).decode());
     }
 
     @Test
