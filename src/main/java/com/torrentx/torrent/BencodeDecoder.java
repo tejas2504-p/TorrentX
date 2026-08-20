@@ -13,7 +13,7 @@ public class BencodeDecoder {
     
     private final byte[] data;
     private int index = 0;
-    private int depth = 0;
+    private boolean parsingRoot = false;
     
     private int infoStart = -1;
     private int infoEnd = -1;
@@ -38,7 +38,7 @@ public class BencodeDecoder {
      */
     public Object decode() throws BencodeException {
         this.index = 0;
-        this.depth = 0;
+        this.parsingRoot = true;
         this.infoStart = -1;
         this.infoEnd = -1;
         
@@ -70,13 +70,16 @@ public class BencodeDecoder {
     }
 
     private Object parseValue() throws BencodeException {
+        boolean isRoot = parsingRoot;
+        parsingRoot = false; // Reset early so nested/subsequent values are not treated as root
+        
         byte b = peek();
         if (b == 'i') {
             return parseInteger();
         } else if (b == 'l') {
             return parseList();
         } else if (b == 'd') {
-            return parseDictionary();
+            return parseDictionary(isRoot);
         } else if (b >= '0' && b <= '9') {
             return parseString();
         } else {
@@ -180,9 +183,8 @@ public class BencodeDecoder {
         return list;
     }
 
-    private Map<String, Object> parseDictionary() throws BencodeException {
+    private Map<String, Object> parseDictionary(boolean isRoot) throws BencodeException {
         expect((byte) 'd');
-        depth++;
         
         Map<String, Object> map = new LinkedHashMap<>();
         byte[] prevKey = null;
@@ -205,7 +207,7 @@ public class BencodeDecoder {
             prevKey = keyBytes;
             
             // Parse the value
-            boolean isInfoKey = (depth == 1 && "info".equals(key));
+            boolean isInfoKey = (isRoot && "info".equals(key));
             if (isInfoKey) {
                 infoStart = index;
             }
@@ -220,7 +222,6 @@ public class BencodeDecoder {
         }
         
         expect((byte) 'e');
-        depth--;
         return map;
     }
 
