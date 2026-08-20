@@ -68,6 +68,16 @@ class BencodeDecoderTest {
         decoder = new BencodeDecoder("0:".getBytes(StandardCharsets.US_ASCII));
         assertArrayEquals(new byte[0], (byte[]) decoder.decode());
 
+        // Unicode encoded bytes
+        String unicodeStr = "hello 世界";
+        byte[] utf8Bytes = unicodeStr.getBytes(StandardCharsets.UTF_8);
+        byte[] prefix = (utf8Bytes.length + ":").getBytes(StandardCharsets.US_ASCII);
+        byte[] bencodedUnicode = new byte[prefix.length + utf8Bytes.length];
+        System.arraycopy(prefix, 0, bencodedUnicode, 0, prefix.length);
+        System.arraycopy(utf8Bytes, 0, bencodedUnicode, prefix.length, utf8Bytes.length);
+        decoder = new BencodeDecoder(bencodedUnicode);
+        assertArrayEquals(utf8Bytes, (byte[]) decoder.decode());
+
         // Arbitrary binary bytes
         byte[] binaryData = new byte[]{1, 2, 3, 0, 4, 5, -1, -128};
         byte[] encodedData = new byte[binaryData.length + 2];
@@ -83,11 +93,17 @@ class BencodeDecoderTest {
         // Leading zero in length
         assertThrows(BencodeException.class, () -> new BencodeDecoder("03:abc".getBytes(StandardCharsets.US_ASCII)).decode());
 
-        // Premature EOF
+        // Premature EOF / Truncated input
         assertThrows(BencodeException.class, () -> new BencodeDecoder("4:spa".getBytes(StandardCharsets.US_ASCII)).decode());
 
         // Invalid length character
         assertThrows(BencodeException.class, () -> new BencodeDecoder("4a:spam".getBytes(StandardCharsets.US_ASCII)).decode());
+
+        // Missing ':' separator
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("4spam".getBytes(StandardCharsets.US_ASCII)).decode());
+
+        // Negative length (invalid length format/character)
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("-4:spam".getBytes(StandardCharsets.US_ASCII)).decode());
     }
 
     @Test
