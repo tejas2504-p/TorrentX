@@ -1,0 +1,180 @@
+package com.torrentx.torrent;
+
+import org.junit.jupiter.api.Test;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class BencodeDecoderTest {
+
+    @Test
+    void testConstructorWithNullData() {
+        assertThrows(IllegalArgumentException.class, () -> new BencodeDecoder(null));
+    }
+
+    @Test
+    void testEmptyInputThrowsException() {
+        BencodeDecoder decoder = new BencodeDecoder(new byte[0]);
+        assertThrows(BencodeException.class, decoder::decode);
+    }
+
+    @Test
+    void testDecodeIntegers() throws BencodeException {
+        // Positive integer
+        BencodeDecoder decoder = new BencodeDecoder("i42e".getBytes(StandardCharsets.US_ASCII));
+        assertEquals(42L, decoder.decode());
+
+        // Negative integer
+        decoder = new BencodeDecoder("i-42e".getBytes(StandardCharsets.US_ASCII));
+        assertEquals(-42L, decoder.decode());
+
+        // Zero
+        decoder = new BencodeDecoder("i0e".getBytes(StandardCharsets.US_ASCII));
+        assertEquals(0L, decoder.decode());
+
+        // Large integer
+        decoder = new BencodeDecoder("i9223372036854775807e".getBytes(StandardCharsets.US_ASCII));
+        assertEquals(Long.MAX_VALUE, decoder.decode());
+    }
+
+    @Test
+    void testDecodeInvalidIntegers() {
+        // Negative zero
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("i-0e".getBytes(StandardCharsets.US_ASCII)).decode());
+
+        // Leading zeroes
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("i03e".getBytes(StandardCharsets.US_ASCII)).decode());
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("i-03e".getBytes(StandardCharsets.US_ASCII)).decode());
+
+        // Unclosed
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("i42".getBytes(StandardCharsets.US_ASCII)).decode());
+
+        // Non-numeric
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("i42ae".getBytes(StandardCharsets.US_ASCII)).decode());
+
+        // Overflow
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("i9223372036854775808e".getBytes(StandardCharsets.US_ASCII)).decode());
+    }
+
+    @Test
+    void testDecodeStrings() throws BencodeException {
+        // Normal string
+        BencodeDecoder decoder = new BencodeDecoder("4:spam".getBytes(StandardCharsets.US_ASCII));
+        assertArrayEquals("spam".getBytes(StandardCharsets.US_ASCII), (byte[]) decoder.decode());
+
+        // Empty string
+        decoder = new BencodeDecoder("0:".getBytes(StandardCharsets.US_ASCII));
+        assertArrayEquals(new byte[0], (byte[]) decoder.decode());
+
+        // Arbitrary binary bytes
+        byte[] binaryData = new byte[]{1, 2, 3, 0, 4, 5, -1, -128};
+        byte[] encodedData = new byte[binaryData.length + 2];
+        encodedData[0] = '8';
+        encodedData[1] = ':';
+        System.arraycopy(binaryData, 0, encodedData, 2, binaryData.length);
+        decoder = new BencodeDecoder(encodedData);
+        assertArrayEquals(binaryData, (byte[]) decoder.decode());
+    }
+
+    @Test
+    void testDecodeInvalidStrings() {
+        // Leading zero in length
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("03:abc".getBytes(StandardCharsets.US_ASCII)).decode());
+
+        // Premature EOF
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("4:spa".getBytes(StandardCharsets.US_ASCII)).decode());
+
+        // Invalid length character
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("4a:spam".getBytes(StandardCharsets.US_ASCII)).decode());
+    }
+
+    @Test
+    void testDecodeLists() throws BencodeException {
+        // Empty list
+        BencodeDecoder decoder = new BencodeDecoder("le".getBytes(StandardCharsets.US_ASCII));
+        List<?> emptyList = (List<?>) decoder.decode();
+        assertTrue(emptyList.isEmpty());
+
+        // Mixed list
+        decoder = new BencodeDecoder("l4:spami42ee".getBytes(StandardCharsets.US_ASCII));
+        List<?> list = (List<?>) decoder.decode();
+        assertEquals(2, list.size());
+        assertArrayEquals("spam".getBytes(StandardCharsets.US_ASCII), (byte[]) list.get(0));
+        assertEquals(42L, list.get(1));
+    }
+
+    @Test
+    void testDecodeInvalidLists() {
+        // Unclosed list
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("l4:spami42e".getBytes(StandardCharsets.US_ASCII)).decode());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testDecodeDictionaries() throws BencodeException {
+        // Empty dictionary
+        BencodeDecoder decoder = new BencodeDecoder("de".getBytes(StandardCharsets.US_ASCII));
+        Map<String, Object> emptyMap = (Map<String, Object>) decoder.decode();
+        assertTrue(emptyMap.isEmpty());
+
+        // Sorted dictionary
+        decoder = new BencodeDecoder("d3:bar4:spam3:fooi42ee".getBytes(StandardCharsets.US_ASCII));
+        Map<String, Object> map = (Map<String, Object>) decoder.decode();
+        assertEquals(2, map.size());
+        assertArrayEquals("spam".getBytes(StandardCharsets.US_ASCII), (byte[]) map.get("bar"));
+        assertEquals(42L, map.get("foo"));
+    }
+
+    @Test
+    void testDecodeInvalidDictionaries() {
+        // Keys not sorted lexicographically
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("d3:fooi42e3:bar4:spame".getBytes(StandardCharsets.US_ASCII)).decode());
+
+        // Non-string key
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("di42ei10ee".getBytes(StandardCharsets.US_ASCII)).decode());
+
+        // Unclosed dictionary
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("d3:bar4:spam".getBytes(StandardCharsets.US_ASCII)).decode());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testRawInfoExtraction() throws BencodeException {
+        // Simple case: info is dictionary
+        byte[] input = "d8:announce35:http://tracker.example.com/announce4:infod3:fooi42eee".getBytes(StandardCharsets.US_ASCII);
+        BencodeDecoder decoder = new BencodeDecoder(input);
+        
+        Map<String, Object> decoded = (Map<String, Object>) decoder.decode();
+        assertNotNull(decoded);
+        
+        byte[] rawInfo = decoder.getRawInfoBytes();
+        assertNotNull(rawInfo);
+        assertEquals("d3:fooi42ee", new String(rawInfo, StandardCharsets.US_ASCII));
+
+        // When info key doesn't exist
+        byte[] inputNoInfo = "d8:announce35:http://tracker.example.com/announcee".getBytes(StandardCharsets.US_ASCII);
+        decoder = new BencodeDecoder(inputNoInfo);
+        decoder.decode();
+        assertNull(decoder.getRawInfoBytes());
+    }
+
+    @Test
+    void testNestedInfoIsolation() throws BencodeException {
+        // When "info" key is nested inside another list or map and not at the root
+        byte[] input = "d4:dictd4:infod3:fooi42eeee".getBytes(StandardCharsets.US_ASCII);
+        BencodeDecoder decoder = new BencodeDecoder(input);
+        decoder.decode();
+        
+        // Root depth is 0, dictionary has depth 1, the inner dictionary has depth 2.
+        // Therefore, "info" is at depth 2 and should not be extracted as the root info block.
+        assertNull(decoder.getRawInfoBytes());
+    }
+
+    @Test
+    void testTrailingBytes() {
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("i42eextra".getBytes(StandardCharsets.US_ASCII)).decode());
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("0: ".getBytes(StandardCharsets.US_ASCII)).decode());
+    }
+}

@@ -51,6 +51,7 @@ TorrentX/
     ├── main/
     │   ├── java/             # Source packages
     │   │   └── com/torrentx/
+    │   │       ├── TorrentClient.java # Main application entry point
     │   │       ├── bencode/  # Bencode placeholders
     │   │       ├── core/     # Core lifecycle (ClientManager)
     │   │       ├── gui/      # MainWindow, MainController, TorrentRow, TorrentXApp
