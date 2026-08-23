@@ -27,9 +27,16 @@ C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\torr
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\torrent\TorrentMetadata.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\torrent\TorrentParser.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\TorrentClient.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\tracker\DefaultHttpConnector.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\tracker\HttpConnector.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\tracker\package-info.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\tracker\PeerInfo.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\tracker\TrackerClient.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\tracker\TrackerException.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\tracker\TrackerRequest.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\tracker\TrackerRequestEncoder.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\tracker\TrackerResponse.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\tracker\TrackerResponseParser.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\utils\Config.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\utils\Logger.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\utils\package-info.java
