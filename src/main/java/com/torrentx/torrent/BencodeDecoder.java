@@ -198,7 +198,7 @@ public class BencodeDecoder {
             }
             
             byte[] keyBytes = parseString();
-            String key = new String(keyBytes, StandardCharsets.UTF_8);
+            String key = new String(keyBytes, StandardCharsets.ISO_8859_1);
             
             // Verify key order (lexicographically sorted by raw bytes)
             if (prevKey != null && compareByteArrays(prevKey, keyBytes) >= 0) {

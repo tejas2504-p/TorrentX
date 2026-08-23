@@ -221,4 +221,74 @@ class BencodeDecoderTest {
         assertThrows(BencodeException.class, () -> new BencodeDecoder("i42eextra".getBytes(StandardCharsets.US_ASCII)).decode());
         assertThrows(BencodeException.class, () -> new BencodeDecoder("0: ".getBytes(StandardCharsets.US_ASCII)).decode());
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testDictionaryEdgeCases() throws BencodeException {
+        // Raw key bytes preservation: construct a key with invalid UTF-8 (e.g. byte 0x80)
+        byte[] rawKey = new byte[]{(byte) 0x80};
+        byte[] rawValue = "spam".getBytes(StandardCharsets.US_ASCII);
+        
+        // Bencoded: d1:<0x80>4:spame
+        byte[] input = new byte[1 + 2 + 1 + 2 + 4 + 1];
+        input[0] = 'd';
+        input[1] = '1';
+        input[2] = ':';
+        input[3] = (byte) 0x80;
+        input[4] = '4';
+        input[5] = ':';
+        System.arraycopy(rawValue, 0, input, 6, 4);
+        input[10] = 'e';
+        
+        BencodeDecoder decoder = new BencodeDecoder(input);
+        Map<String, Object> decoded = (Map<String, Object>) decoder.decode();
+        assertEquals(1, decoded.size());
+        
+        // Get the key in string format and extract its bytes using ISO-8859-1
+        String keyStr = decoded.keySet().iterator().next();
+        byte[] extractedKeyBytes = keyStr.getBytes(StandardCharsets.ISO_8859_1);
+        assertArrayEquals(rawKey, extractedKeyBytes);
+        assertArrayEquals(rawValue, (byte[]) decoded.values().iterator().next());
+    }
+
+    @Test
+    void testDecodeDictionaryDuplicateKeys() {
+        // Duplicate keys: d3:foo4:spam3:fooi42ee
+        byte[] input = "d3:foo4:spam3:fooi42ee".getBytes(StandardCharsets.US_ASCII);
+        assertThrows(BencodeException.class, () -> new BencodeDecoder(input).decode());
+    }
+
+    @Test
+    void testDecodeDictionaryTruncatedAndMissingTerminator() {
+        // Missing terminator
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("d3:foo4:spam".getBytes(StandardCharsets.US_ASCII)).decode());
+        
+        // Truncated keys
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("d3:fo".getBytes(StandardCharsets.US_ASCII)).decode());
+        
+        // Truncated value
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("d3:foo4:sp".getBytes(StandardCharsets.US_ASCII)).decode());
+        
+        // Just 'd'
+        assertThrows(BencodeException.class, () -> new BencodeDecoder("d".getBytes(StandardCharsets.US_ASCII)).decode());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void testNestedDictionariesAndLists() throws BencodeException {
+        // Nested dictionaries and lists
+        byte[] input = "d3:bard3:fooi42ee4:listl4:spamdeee".getBytes(StandardCharsets.US_ASCII);
+        BencodeDecoder decoder = new BencodeDecoder(input);
+        Map<String, Object> map = (Map<String, Object>) decoder.decode();
+        
+        assertEquals(2, map.size());
+        
+        Map<String, Object> bar = (Map<String, Object>) map.get("bar");
+        assertEquals(42L, bar.get("foo"));
+        
+        List<Object> list = (List<Object>) map.get("list");
+        assertEquals(2, list.size());
+        assertArrayEquals("spam".getBytes(StandardCharsets.US_ASCII), (byte[]) list.get(0));
+        assertTrue(((Map<String, Object>) list.get(1)).isEmpty());
+    }
 }
