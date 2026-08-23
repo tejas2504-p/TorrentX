@@ -220,7 +220,12 @@ class TorrentParserTest {
         TorrentParser parser = new TorrentParser();
 
         byte[] missingAnnounce = "d4:infod6:lengthi12345e4:name10:single.txt12:piece lengthi16384e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
-        assertThrows(TorrentException.class, () -> parser.parse(missingAnnounce));
+        try {
+            TorrentMetadata metadata = parser.parse(missingAnnounce);
+            assertNull(metadata.getAnnounce());
+        } catch (TorrentException e) {
+            fail("Parsing should succeed even if announce is missing: " + e.getMessage());
+        }
 
         byte[] invalidAnnounceType = "d8:announcei42e4:infod6:lengthi12345e4:name10:single.txt12:piece lengthi16384e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
         assertThrows(TorrentException.class, () -> parser.parse(invalidAnnounceType));

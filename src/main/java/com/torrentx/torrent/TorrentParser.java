@@ -96,17 +96,19 @@ public class TorrentParser {
         
         Map<String, Object> root = (Map<String, Object>) decoded;
         
-        // Extract & validate announce URL
-        Object announceObj = root.get("announce");
-        if (announceObj == null) {
-            throw new TorrentException("Missing required 'announce' field");
-        }
-        if (!(announceObj instanceof byte[])) {
-            throw new TorrentException("Invalid 'announce' field: must be a byte string");
-        }
-        String announce = new String((byte[]) announceObj, StandardCharsets.UTF_8);
-        if (announce.trim().isEmpty()) {
-            throw new TorrentException("Announce URL cannot be empty");
+        // Extract & validate announce URL (optional)
+        String announce = null;
+        if (root.containsKey("announce")) {
+            Object announceObj = root.get("announce");
+            if (announceObj != null) {
+                if (!(announceObj instanceof byte[])) {
+                    throw new TorrentException("Invalid 'announce' field: must be a byte string");
+                }
+                announce = new String((byte[]) announceObj, StandardCharsets.UTF_8);
+                if (announce.trim().isEmpty()) {
+                    throw new TorrentException("Announce URL cannot be empty");
+                }
+            }
         }
         
         // Extract & validate announce list (optional, but must be correctly structured if present)

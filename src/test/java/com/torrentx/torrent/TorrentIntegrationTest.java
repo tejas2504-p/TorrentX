@@ -117,12 +117,13 @@ class TorrentIntegrationTest {
     }
 
     @Test
-    void testIntegrationInvalidAnnounceMetadata() throws Exception {
+    void testIntegrationMissingAnnounceMetadata() throws Exception {
         TorrentParser parser = new TorrentParser();
-        byte[] invalidAnnounce = "d4:infod6:lengthi12345e4:name10:single.txt12:piece lengthi16384e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
-        Path path = tempDir.resolve("invalid_announce.torrent");
-        Files.write(path, invalidAnnounce);
-        assertThrows(TorrentException.class, () -> parser.parse(path));
+        byte[] missingAnnounce = "d4:infod6:lengthi12345e4:name10:single.txt12:piece lengthi16384e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
+        Path path = tempDir.resolve("missing_announce.torrent");
+        Files.write(path, missingAnnounce);
+        TorrentMetadata metadata = parser.parse(path);
+        assertNull(metadata.getAnnounce());
     }
 
     @Test
