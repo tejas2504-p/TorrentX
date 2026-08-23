@@ -108,19 +108,11 @@ public class TrackerClient {
     /**
      * Generates a 20-byte Peer ID according to the Azureus convention.
      * Format: -TX1000- followed by 12 cryptographically secure random bytes.
+     * Delegates to PeerIdGenerator to maintain a stable session ID.
      *
      * @return the generated 20-byte Peer ID.
      */
     public static byte[] generatePeerId() {
-        byte[] peerId = new byte[20];
-        byte[] prefix = "-TX1000-".getBytes(StandardCharsets.US_ASCII);
-        System.arraycopy(prefix, 0, peerId, 0, 8);
-
-        SecureRandom secureRandom = new SecureRandom();
-        byte[] randomBytes = new byte[12];
-        secureRandom.nextBytes(randomBytes);
-        System.arraycopy(randomBytes, 0, peerId, 8, 12);
-
-        return peerId;
+        return PeerIdGenerator.getSessionPeerId();
     }
 }
