@@ -77,9 +77,6 @@ public class TorrentParser {
      * @throws TorrentException if parsing fails.
      */
     @SuppressWarnings("unchecked")
-    public TorrentMetadata metals = null;
-    
-    @SuppressWarnings("unchecked")
     public TorrentMetadata parse(byte[] torrentData) throws TorrentException {
         if (torrentData == null) {
             throw new IllegalArgumentException("Torrent data cannot be null");
@@ -184,7 +181,13 @@ public class TorrentParser {
             throw new TorrentException("Missing or invalid 'name' field in info");
         }
         byte[] rawName = (byte[]) nameObj;
-        String name = new String(rawName, StandardCharsets.UTF_8);
+        String name = new String(rawName, StandardCharsets.UTF_8).trim();
+        if (name.isEmpty()) {
+            throw new TorrentException("Torrent name cannot be empty");
+        }
+        if ("..".equals(name) || ".".equals(name)) {
+            throw new TorrentException("Torrent name is invalid (directory traversal or relative path)");
+        }
         
         // Parse single or multi file layout
         List<TorrentFile> torrentFiles = new ArrayList<>();
@@ -224,7 +227,18 @@ public class TorrentParser {
                     if (!(segment instanceof byte[])) {
                         throw new TorrentException("path segments must be byte strings");
                     }
-                    rawPath.add((byte[]) segment);
+                    byte[] segmentBytes = (byte[]) segment;
+                    String segmentStr = new String(segmentBytes, StandardCharsets.UTF_8).trim();
+                    if (segmentStr.isEmpty()) {
+                        throw new TorrentException("Path segment cannot be empty or blank");
+                    }
+                    if ("..".equals(segmentStr)) {
+                        throw new TorrentException("Path traversal segment '..' is not allowed");
+                    }
+                    if (".".equals(segmentStr)) {
+                        throw new TorrentException("Path segment '.' is not allowed");
+                    }
+                    rawPath.add(segmentBytes);
                 }
                 if (rawPath.isEmpty()) {
                     throw new TorrentException("path segments cannot be empty");

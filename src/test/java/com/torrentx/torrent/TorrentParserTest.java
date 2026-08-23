@@ -122,23 +122,18 @@ class TorrentParserTest {
         assertThrows(TorrentException.class, () -> parser.parse("i42e".getBytes(StandardCharsets.US_ASCII)));
         assertThrows(TorrentException.class, () -> parser.parse("d8:announce35:http://tracker.example.com/announcee".getBytes(StandardCharsets.US_ASCII)));
         
-        // Invalid piece length (negative)
         byte[] invalidPieceLen = "d8:announce35:http://tracker.example.com/announce4:infod6:lengthi12345e4:name10:single.txt12:piece lengthi-16384e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
         assertThrows(TorrentException.class, () -> parser.parse(invalidPieceLen));
         
-        // Pieces length not multiple of 20
         byte[] invalidPieces = "d8:announce35:http://tracker.example.com/announce4:infod6:lengthi12345e4:name10:single.txt12:piece lengthi16384e6:pieces19:1234567890123456789ee".getBytes(StandardCharsets.US_ASCII);
         assertThrows(TorrentException.class, () -> parser.parse(invalidPieces));
         
-        // Missing pieces field entirely
         byte[] missingPieces = "d8:announce35:http://tracker.example.com/announce4:infod6:lengthi12345e4:name10:single.txt12:piece lengthi16384ee".getBytes(StandardCharsets.US_ASCII);
         assertThrows(TorrentException.class, () -> parser.parse(missingPieces));
         
-        // Single-file missing length field
         byte[] missingLen = "d8:announce35:http://tracker.example.com/announce4:infod4:name10:single.txt12:piece lengthi16384e6:pieces20:12345678901234567890eee".getBytes(StandardCharsets.US_ASCII);
         assertThrows(TorrentException.class, () -> parser.parse(missingLen));
         
-        // Multi-file missing length field in a files list entry
         byte[] missingFileLen = "d8:announce35:http://tracker.example.com/announce4:infod5:filesld4:pathl9:fileB.txteee4:name9:multi-dir12:piece lengthi32768e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
         assertThrows(TorrentException.class, () -> parser.parse(missingFileLen));
     }
@@ -265,5 +260,37 @@ class TorrentParserTest {
 
         byte[] inconsistentPieces = "d8:announce35:http://tracker.example.com/announce4:infod6:lengthi25000e4:name10:single.txt12:piece lengthi16384e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
         assertThrows(TorrentException.class, () -> parser.parse(inconsistentPieces));
+    }
+
+    @Test
+    void testParseMultiFileEmptyPathSegment() {
+        TorrentParser parser = new TorrentParser();
+        byte[] emptySegment = "d8:announce35:http://tracker.example.com/announce4:infod5:filesld6:lengthi100e4:pathl4:sub10:eeeed4:name9:multi-dir12:piece lengthi32768e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
+        assertThrows(TorrentException.class, () -> parser.parse(emptySegment));
+    }
+
+    @Test
+    void testParseMultiFileTraversalDotDot() {
+        TorrentParser parser = new TorrentParser();
+        byte[] pathDotDot = "d8:announce35:http://tracker.example.com/announce4:infod5:filesld6:lengthi100e4:pathl4:sub12:..eeeed4:name9:multi-dir12:piece lengthi32768e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
+        assertThrows(TorrentException.class, () -> parser.parse(pathDotDot));
+    }
+
+    @Test
+    void testParseMultiFileTraversalDot() {
+        TorrentParser parser = new TorrentParser();
+        byte[] pathDot = "d8:announce35:http://tracker.example.com/announce4:infod5:filesld6:lengthi100e4:pathl4:sub11:.eeeed4:name9:multi-dir12:piece lengthi32768e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
+        assertThrows(TorrentException.class, () -> parser.parse(pathDot));
+    }
+
+    @Test
+    void testSingleFileTraversal() {
+        TorrentParser parser = new TorrentParser();
+
+        byte[] nameDotDot = "d8:announce35:http://tracker.example.com/announce4:infod6:lengthi12345e4:name2:..12:piece lengthi16384e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
+        assertThrows(TorrentException.class, () -> parser.parse(nameDotDot));
+
+        byte[] nameDot = "d8:announce35:http://tracker.example.com/announce4:infod6:lengthi12345e4:name1:.12:piece lengthi16384e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
+        assertThrows(TorrentException.class, () -> parser.parse(nameDot));
     }
 }
