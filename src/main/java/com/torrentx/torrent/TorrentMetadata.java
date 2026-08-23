@@ -26,12 +26,51 @@ public class TorrentMetadata {
     public TorrentMetadata(String announce, List<List<String>> announceList, String name, byte[] rawName,
                            long pieceLength, byte[] pieces, List<TorrentFile> files, 
                            boolean isSingleFile, byte[] infoHash) {
+        // Validate announce (when present)
+        if (announce != null && announce.trim().isEmpty()) {
+            throw new IllegalArgumentException("Announce URL cannot be empty or blank when present");
+        }
         this.announce = announce;
-        this.announceList = announceList != null ? announceList : Collections.emptyList();
+        
+        // Validate announceList (when present)
+        if (announceList != null) {
+            for (List<String> tier : announceList) {
+                if (tier == null) {
+                    throw new IllegalArgumentException("Announce list tier cannot be null");
+                }
+                for (String url : tier) {
+                    if (url == null || url.trim().isEmpty()) {
+                        throw new IllegalArgumentException("Tracker URL in announce list cannot be null or blank");
+                    }
+                }
+            }
+            this.announceList = Collections.unmodifiableList(new ArrayList<>(announceList));
+        } else {
+            this.announceList = Collections.emptyList();
+        }
+        
+        // Validate name and rawName
+        if (name == null || name.trim().isEmpty()) {
+            throw new IllegalArgumentException("Torrent name cannot be null or empty");
+        }
+        String nameTrimmed = name.trim();
+        if ("..".equals(nameTrimmed) || ".".equals(nameTrimmed)) {
+            throw new IllegalArgumentException("Torrent name is invalid (directory traversal or relative path)");
+        }
         this.name = name;
-        this.rawName = rawName != null ? rawName.clone() : new byte[0];
+        
+        if (rawName == null || rawName.length == 0) {
+            throw new IllegalArgumentException("Raw name cannot be null or empty");
+        }
+        this.rawName = rawName.clone();
+        
+        // Validate pieceLength
+        if (pieceLength <= 0) {
+            throw new IllegalArgumentException("Piece length must be a positive integer: " + pieceLength);
+        }
         this.pieceLength = pieceLength;
         
+        // Validate pieces
         if (pieces == null) {
             throw new IllegalArgumentException("Pieces cannot be null");
         }
@@ -40,19 +79,69 @@ public class TorrentMetadata {
         }
         this.pieces = pieces.clone();
         
-        this.files = files != null ? Collections.unmodifiableList(new ArrayList<>(files)) : Collections.emptyList();
-        this.isSingleFile = isSingleFile;
-        this.infoHash = infoHash != null ? infoHash.clone() : new byte[0];
+        // Validate infoHash
+        if (infoHash == null) {
+            throw new IllegalArgumentException("Info-hash cannot be null");
+        }
+        if (infoHash.length != 20) {
+            throw new IllegalArgumentException("Info-hash must be exactly 20 bytes: " + infoHash.length);
+        }
+        this.infoHash = infoHash.clone();
         
-        long calculatedTotalLength = 0;
-        if (isSingleFile && files != null && !files.isEmpty()) {
-            calculatedTotalLength = files.get(0).getLength();
-        } else if (files != null) {
-            for (TorrentFile f : files) {
-                calculatedTotalLength += f.getLength();
+        // Validate files list
+        if (files == null || files.isEmpty()) {
+            throw new IllegalArgumentException("Files list cannot be null or empty");
+        }
+        
+        // Validate each file
+        for (TorrentFile f : files) {
+            if (f == null) {
+                throw new IllegalArgumentException("Torrent file entry cannot be null");
+            }
+            if (f.getLength() < 0) {
+                throw new IllegalArgumentException("File length cannot be negative: " + f.getLength());
+            }
+            List<byte[]> rawPath = f.getRawPath();
+            if (rawPath == null || rawPath.isEmpty()) {
+                throw new IllegalArgumentException("File path components cannot be null or empty");
+            }
+            for (byte[] segmentBytes : rawPath) {
+                if (segmentBytes == null || segmentBytes.length == 0) {
+                    throw new IllegalArgumentException("File path segment cannot be null or empty");
+                }
+                String segmentStr = new String(segmentBytes, java.nio.charset.StandardCharsets.UTF_8).trim();
+                if (segmentStr.isEmpty()) {
+                    throw new IllegalArgumentException("File path segment cannot be blank");
+                }
+                if ("..".equals(segmentStr)) {
+                    throw new IllegalArgumentException("File path traversal segment '..' is not allowed");
+                }
+                if (".".equals(segmentStr)) {
+                    throw new IllegalArgumentException("File path segment '.' is not allowed");
+                }
             }
         }
+        this.files = Collections.unmodifiableList(new ArrayList<>(files));
+        this.isSingleFile = isSingleFile;
+        
+        // Calculate and validate total length
+        long calculatedTotalLength = 0;
+        for (TorrentFile f : files) {
+            calculatedTotalLength += f.getLength();
+        }
+        if (calculatedTotalLength <= 0) {
+            throw new IllegalArgumentException("Total torrent length must be positive: " + calculatedTotalLength);
+        }
         this.totalLength = calculatedTotalLength;
+        
+        // Verify piece count consistency
+        long expectedPieceCount = (calculatedTotalLength + pieceLength - 1) / pieceLength;
+        int parsedPieceCount = pieces.length / 20;
+        if (parsedPieceCount != expectedPieceCount) {
+            throw new IllegalArgumentException("Inconsistent metadata: pieces count (" + parsedPieceCount + 
+                                               ") does not match expected piece count (" + expectedPieceCount + 
+                                               ") calculated from total length " + calculatedTotalLength + " and piece length " + pieceLength);
+        }
     }
 
     /**
@@ -61,7 +150,8 @@ public class TorrentMetadata {
     public TorrentMetadata(String announce, byte[] infoHash, String name, long pieceLength, List<byte[]> pieces, long totalLength) {
         this(announce, null, name, name != null ? name.getBytes(java.nio.charset.StandardCharsets.UTF_8) : new byte[0], 
              pieceLength, listToBytes(pieces), 
-             Collections.singletonList(new TorrentFile(totalLength, null)), true, infoHash);
+             Collections.singletonList(new TorrentFile(totalLength, Collections.singletonList(name != null ? name.getBytes(java.nio.charset.StandardCharsets.UTF_8) : "default_name".getBytes(java.nio.charset.StandardCharsets.UTF_8)))), 
+             true, infoHash);
     }
 
     private static byte[] listToBytes(List<byte[]> list) {

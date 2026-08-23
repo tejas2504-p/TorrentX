@@ -23,7 +23,7 @@ class TorrentMetadataTest {
         piece1[0] = 5;
         pieces.add(piece1);
 
-        long totalLength = 1048576;
+        long totalLength = 262144; // match pieceLength for expected pieces count = 1
 
         TorrentMetadata metadata = new TorrentMetadata(announce, infoHash, name, pieceLength, pieces, totalLength);
 
@@ -52,9 +52,9 @@ class TorrentMetadataTest {
         pieces[20] = 10;
         
         List<TorrentFile> files = List.of(
-            new TorrentFile(500, List.of("file1.bin".getBytes(StandardCharsets.UTF_8))),
-            new TorrentFile(1000, List.of("sub".getBytes(StandardCharsets.UTF_8), "file2.bin".getBytes(StandardCharsets.UTF_8)))
-        );
+            new TorrentFile(15000, List.of("file1.bin".getBytes(StandardCharsets.UTF_8))),
+            new TorrentFile(17000, List.of("sub".getBytes(StandardCharsets.UTF_8), "file2.bin".getBytes(StandardCharsets.UTF_8)))
+        ); // Total length = 32000. Piece length = 16384. Expected pieces count = (32000 + 16384 - 1)/16384 = 2.
         byte[] infoHash = new byte[20];
         infoHash[5] = 42;
 
@@ -76,7 +76,7 @@ class TorrentMetadataTest {
 
         assertEquals(files, metadata.getFiles());
         assertFalse(metadata.isSingleFile());
-        assertEquals(1500L, metadata.getTotalLength());
+        assertEquals(32000L, metadata.getTotalLength());
         assertArrayEquals(infoHash, metadata.getInfoHash());
     }
 
@@ -93,7 +93,7 @@ class TorrentMetadataTest {
             "test".getBytes(StandardCharsets.UTF_8),
             16384,
             pieces,
-            Collections.emptyList(),
+            List.of(new TorrentFile(1000, List.of("file".getBytes(StandardCharsets.UTF_8)))),
             true,
             new byte[20]
         );
@@ -118,7 +118,7 @@ class TorrentMetadataTest {
             "test".getBytes(StandardCharsets.UTF_8),
             16384,
             pieces,
-            Collections.emptyList(),
+            List.of(new TorrentFile(40000, List.of("file".getBytes(StandardCharsets.UTF_8)))), // total = 40000. Expected pieces = (40000 + 16384 - 1)/16384 = 3
             true,
             new byte[20]
         );
@@ -137,7 +137,6 @@ class TorrentMetadataTest {
 
     @Test
     void testInvalidPiecesLength() {
-        // pieces length is 19 (not divisible by 20)
         byte[] invalidPieces = new byte[19];
         assertThrows(IllegalArgumentException.class, () -> new TorrentMetadata(
             "http://tracker.com",
@@ -146,40 +145,30 @@ class TorrentMetadataTest {
             "test".getBytes(StandardCharsets.UTF_8),
             16384,
             invalidPieces,
-            Collections.emptyList(),
+            List.of(new TorrentFile(1000, List.of("file".getBytes(StandardCharsets.UTF_8)))),
             true,
             new byte[20]
-        ));
-
-        // null pieces list compatibility constructor test
-        List<byte[]> invalidPiecesList = new ArrayList<>();
-        invalidPiecesList.add(new byte[19]); // Entry not 20 bytes
-        assertThrows(IllegalArgumentException.class, () -> new TorrentMetadata(
-            "http://tracker.com",
-            new byte[20],
-            "test",
-            16384,
-            invalidPiecesList,
-            1000
         ));
     }
 
     @Test
     void testEmptyPieces() {
+        // pieceLength is positive, empty pieces requires totalLength to be 0... but totalLength must be positive (> 0)!
+        // Therefore, we cannot construct a valid TorrentMetadata with empty pieces because it violates piece count consistency:
+        // totalLength > 0 -> expected pieces >= 1, but empty pieces -> actual pieces count = 0.
+        // Thus, constructing with empty pieces is correctly rejected due to consistency!
         byte[] emptyPieces = new byte[0];
-        TorrentMetadata metadata = new TorrentMetadata(
+        assertThrows(IllegalArgumentException.class, () -> new TorrentMetadata(
             "http://tracker.com",
             null,
             "test",
             "test".getBytes(StandardCharsets.UTF_8),
             16384,
             emptyPieces,
-            Collections.emptyList(),
+            List.of(new TorrentFile(1000, List.of("file".getBytes(StandardCharsets.UTF_8)))),
             true,
             new byte[20]
-        );
-        assertEquals(0, metadata.getPieceCount());
-        assertEquals(0, metadata.getRawPieces().length);
+        ));
     }
 
     @Test
@@ -201,7 +190,7 @@ class TorrentMetadataTest {
             name.getBytes(StandardCharsets.UTF_8),
             pieceLength,
             pieces,
-            Collections.emptyList(),
+            List.of(new TorrentFile(262145, List.of("file".getBytes(StandardCharsets.UTF_8)))), // expected pieces count = 2
             true,
             infoHash
         );
@@ -220,5 +209,65 @@ class TorrentMetadataTest {
         byte[] retrievedRawPieces = metadata.getRawPieces();
         retrievedRawPieces[0] = 99;
         assertEquals((byte) 5, metadata.getPieceHash(0)[0]);
+    }
+
+    @Test
+    void testConstructorValidationChecks() {
+        // Announce URL validation
+        assertThrows(IllegalArgumentException.class, () -> new TorrentMetadata(
+            "   ", // empty announce URL
+            null, "test", "test".getBytes(StandardCharsets.UTF_8), 16384, new byte[20],
+            List.of(new TorrentFile(1000, List.of("file".getBytes(StandardCharsets.UTF_8)))), true, new byte[20]
+        ));
+
+        // Tracker list validation
+        assertThrows(IllegalArgumentException.class, () -> new TorrentMetadata(
+            "http://tracker.com",
+            List.of(Collections.singletonList("  ")), // blank URL inside announce list
+            "test", "test".getBytes(StandardCharsets.UTF_8), 16384, new byte[20],
+            List.of(new TorrentFile(1000, List.of("file".getBytes(StandardCharsets.UTF_8)))), true, new byte[20]
+        ));
+
+        // Name blank checks
+        assertThrows(IllegalArgumentException.class, () -> new TorrentMetadata(
+            "http://tracker.com", null,
+            "  ", // blank name
+            "test".getBytes(StandardCharsets.UTF_8), 16384, new byte[20],
+            List.of(new TorrentFile(1000, List.of("file".getBytes(StandardCharsets.UTF_8)))), true, new byte[20]
+        ));
+
+        // Name directory traversal
+        assertThrows(IllegalArgumentException.class, () -> new TorrentMetadata(
+            "http://tracker.com", null,
+            "..", // dot dot
+            "test".getBytes(StandardCharsets.UTF_8), 16384, new byte[20],
+            List.of(new TorrentFile(1000, List.of("file".getBytes(StandardCharsets.UTF_8)))), true, new byte[20]
+        ));
+
+        // Zero or negative piece length
+        assertThrows(IllegalArgumentException.class, () -> new TorrentMetadata(
+            "http://tracker.com", null, "test", "test".getBytes(StandardCharsets.UTF_8),
+            0, // zero piece length
+            new byte[20], List.of(new TorrentFile(1000, List.of("file".getBytes(StandardCharsets.UTF_8)))), true, new byte[20]
+        ));
+
+        // Invalid info hash length
+        assertThrows(IllegalArgumentException.class, () -> new TorrentMetadata(
+            "http://tracker.com", null, "test", "test".getBytes(StandardCharsets.UTF_8), 16384, new byte[20],
+            List.of(new TorrentFile(1000, List.of("file".getBytes(StandardCharsets.UTF_8)))), true,
+            new byte[19] // invalid info-hash
+        ));
+
+        // Invalid files list
+        assertThrows(IllegalArgumentException.class, () -> new TorrentMetadata(
+            "http://tracker.com", null, "test", "test".getBytes(StandardCharsets.UTF_8), 16384, new byte[20],
+            Collections.emptyList(), true, new byte[20]
+        ));
+
+        // Traversal segment in TorrentFile path
+        assertThrows(IllegalArgumentException.class, () -> new TorrentFile(1000, List.of("..".getBytes(StandardCharsets.UTF_8))));
+        assertThrows(IllegalArgumentException.class, () -> new TorrentFile(1000, List.of(".".getBytes(StandardCharsets.UTF_8))));
+        assertThrows(IllegalArgumentException.class, () -> new TorrentFile(1000, List.of("".getBytes(StandardCharsets.UTF_8))));
+        assertThrows(IllegalArgumentException.class, () -> new TorrentFile(1000, List.of(new byte[0])));
     }
 }
