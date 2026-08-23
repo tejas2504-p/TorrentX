@@ -1,11 +1,13 @@
 package com.torrentx.torrent;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
@@ -17,6 +19,24 @@ class TorrentParserTest {
 
     @TempDir
     Path tempDir;
+
+    @BeforeAll
+    static void setUpFixtures() throws Exception {
+        String singleBencode = "d8:announce35:http://tracker.example.com/announce4:infod6:lengthi12345e4:name10:single.txt12:piece lengthi16384e6:pieces20:12345678901234567890ee";
+        String multiBencode = "d8:announce35:http://tracker.example.com/announce13:announce-listll18:http://backup1.comel18:http://backup2.comee4:infod5:filesld6:lengthi20000e4:pathl4:sub19:fileA.txteed6:lengthi30000e4:pathl9:fileB.txteee4:name9:multi-dir12:piece lengthi32768e6:pieces40:12345678901234567890abcdefghijklmnopqrstee";
+
+        Path fixturesDir = Paths.get("src", "test", "resources", "fixtures");
+        Files.createDirectories(fixturesDir);
+        Files.write(fixturesDir.resolve("single_file.torrent"), singleBencode.getBytes(StandardCharsets.UTF_8));
+        Files.write(fixturesDir.resolve("multi_file.torrent"), multiBencode.getBytes(StandardCharsets.UTF_8));
+        
+        Path targetFixturesDir = Paths.get("target", "test-classes", "fixtures");
+        if (Files.exists(Paths.get("target", "test-classes"))) {
+            Files.createDirectories(targetFixturesDir);
+            Files.write(targetFixturesDir.resolve("single_file.torrent"), singleBencode.getBytes(StandardCharsets.UTF_8));
+            Files.write(targetFixturesDir.resolve("multi_file.torrent"), multiBencode.getBytes(StandardCharsets.UTF_8));
+        }
+    }
 
     private byte[] sha1(byte[] input) {
         try {
@@ -320,5 +340,43 @@ class TorrentParserTest {
             sb.append(String.format("%02x", b));
         }
         assertEquals(sb.toString(), metadata.getInfoHashHex());
+    }
+
+    @Test
+    void testParseSingleFileFromResources() throws Exception {
+        java.net.URL resourceUrl = getClass().getClassLoader().getResource("fixtures/single_file.torrent");
+        assertNotNull(resourceUrl, "single_file.torrent fixture not found");
+        File file = new File(resourceUrl.toURI());
+        
+        TorrentParser parser = new TorrentParser();
+        TorrentMetadata metadata = parser.parse(file);
+        
+        assertEquals("http://tracker.example.com/announce", metadata.getAnnounce());
+        assertEquals("single.txt", metadata.getName());
+        assertEquals(16384L, metadata.getPieceLength());
+        assertEquals(1, metadata.getPieceCount());
+        assertArrayEquals("12345678901234567890".getBytes(StandardCharsets.US_ASCII), metadata.getPieceHash(0));
+        assertTrue(metadata.isSingleFile());
+        assertEquals(12345L, metadata.getTotalLength());
+    }
+
+    @Test
+    void testParseMultiFileFromResources() throws Exception {
+        java.net.URL resourceUrl = getClass().getClassLoader().getResource("fixtures/multi_file.torrent");
+        assertNotNull(resourceUrl, "multi_file.torrent fixture not found");
+        File file = new File(resourceUrl.toURI());
+        
+        TorrentParser parser = new TorrentParser();
+        TorrentMetadata metadata = parser.parse(file);
+        
+        assertEquals("http://tracker.example.com/announce", metadata.getAnnounce());
+        assertEquals(2, metadata.getAnnounceList().size());
+        assertEquals("http://backup1.com", metadata.getAnnounceList().get(0).get(0));
+        assertEquals("http://backup2.com", metadata.getAnnounceList().get(1).get(0));
+        assertEquals("multi-dir", metadata.getName());
+        assertEquals(32768L, metadata.getPieceLength());
+        assertEquals(2, metadata.getPieceCount());
+        assertFalse(metadata.isSingleFile());
+        assertEquals(50000L, metadata.getTotalLength());
     }
 }
