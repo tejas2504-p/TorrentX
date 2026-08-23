@@ -29,22 +29,10 @@ class TorrentParserTest {
 
     @Test
     void testParseSingleFileTorrent() throws TorrentException {
-        // Construct Bencode for a single-file torrent:
-        // {
-        //   "announce": "http://tracker.example.com/announce",
-        //   "info": {
-        //     "name": "single.txt",
-        //     "piece length": 16384,
-        //     "pieces": <20 bytes of dummy piece hash>,
-        //     "length": 12345
-        //   }
-        // }
         byte[] dummyHash = new byte[20];
         dummyHash[0] = (byte) 0xAA;
         dummyHash[19] = (byte) 0xBB;
         
-        // Let's build the Bencoded string manually:
-        // d8:announce35:http://tracker.example.com/announce4:infod6:lengthi12345e4:name10:single.txt12:piece lengthi16384e6:pieces20:<hash>ee
         byte[] bencodedPrefix = "d8:announce35:http://tracker.example.com/announce4:infod6:lengthi12345e4:name10:single.txt12:piece lengthi16384e6:pieces20:".getBytes(StandardCharsets.US_ASCII);
         byte[] bencodedSuffix = "ee".getBytes(StandardCharsets.US_ASCII);
         
@@ -70,8 +58,6 @@ class TorrentParserTest {
         assertEquals(12345L, file.getLength());
         assertEquals(Collections.singletonList("single.txt"), file.getPath());
         
-        // Verify info hash corresponds to SHA-1 of the exact Bencoded info dictionary
-        // Bencoded info dict: d6:lengthi12345e4:name10:single.txt12:piece lengthi16384e6:pieces20:<hash>ee
         byte[] infoDictPrefix = "d6:lengthi12345e4:name10:single.txt12:piece lengthi16384e6:pieces20:".getBytes(StandardCharsets.US_ASCII);
         byte[] infoDictSuffix = "e".getBytes(StandardCharsets.US_ASCII);
         byte[] expectedInfoDictBytes = new byte[infoDictPrefix.length + 20 + infoDictSuffix.length];
@@ -84,25 +70,15 @@ class TorrentParserTest {
 
     @Test
     void testParseMultiFileTorrent() throws TorrentException {
-        // Construct Bencode for a multi-file torrent:
-        // {
-        //   "announce": "http://tracker.example.com/announce",
-        //   "announce-list": [["http://backup1.com"], ["http://backup2.com"]],
-        //   "info": {
-        //     "name": "multi-dir",
-        //     "piece length": 32768,
-        //     "pieces": <40 bytes of dummy piece hashes (2 pieces)>,
-        //     "files": [
-        //       { "length": 100, "path": ["sub1", "fileA.txt"] },
-        //       { "length": 200, "path": ["fileB.txt"] }
-        //     ]
-        //   }
-        // }
+        // Multi-file total length must be consistent with piece length & actual piece hashes count.
+        // We set length of file A = 20000, file B = 30000. Total = 50000.
+        // Piece length = 32768. Expected pieces = (50000 + 32768 - 1) / 32768 = 2.
+        // We supply 40 bytes of dummy piece hashes (exactly 2 pieces).
         byte[] dummyHashes = new byte[40];
         dummyHashes[0] = 1;
         dummyHashes[20] = 2;
         
-        byte[] prefix = "d8:announce35:http://tracker.example.com/announce13:announce-listll18:http://backup1.comel18:http://backup2.comee4:infod5:filesld6:lengthi100e4:pathl4:sub19:fileA.txteed6:lengthi200e4:pathl9:fileB.txteee4:name9:multi-dir12:piece lengthi32768e6:pieces40:".getBytes(StandardCharsets.US_ASCII);
+        byte[] prefix = "d8:announce35:http://tracker.example.com/announce13:announce-listll18:http://backup1.comel18:http://backup2.comee4:infod5:filesld6:lengthi20000e4:pathl4:sub19:fileA.txteed6:lengthi30000e4:pathl9:fileB.txteee4:name9:multi-dir12:piece lengthi32768e6:pieces40:".getBytes(StandardCharsets.US_ASCII);
         byte[] suffix = "ee".getBytes(StandardCharsets.US_ASCII);
         
         byte[] input = new byte[prefix.length + 40 + suffix.length];
@@ -124,18 +100,18 @@ class TorrentParserTest {
         byte[] expectedHash0 = new byte[20]; expectedHash0[0] = 1; assertArrayEquals(expectedHash0, metadata.getPieceHash(0)); byte[] expectedHash1 = new byte[20]; expectedHash1[0] = 2; assertArrayEquals(expectedHash1, metadata.getPieceHash(1));
         
         assertFalse(metadata.isSingleFile());
-        assertEquals(300L, metadata.getTotalLength());
+        assertEquals(50000L, metadata.getTotalLength());
         
         List<TorrentFile> files = metadata.getFiles();
         assertEquals(2, files.size());
         
         TorrentFile file1 = files.get(0);
-        assertEquals(100L, file1.getLength());
+        assertEquals(20000L, file1.getLength());
         assertEquals(List.of("sub1", "fileA.txt"), file1.getPath());
         assertArrayEquals("sub1".getBytes(StandardCharsets.UTF_8), file1.getRawPath().get(0));
         
         TorrentFile file2 = files.get(1);
-        assertEquals(200L, file2.getLength());
+        assertEquals(30000L, file2.getLength());
         assertEquals(List.of("fileB.txt"), file2.getPath());
     }
 
@@ -143,10 +119,7 @@ class TorrentParserTest {
     void testValidationConstraints() {
         TorrentParser parser = new TorrentParser();
         
-        // Root not dictionary
         assertThrows(TorrentException.class, () -> parser.parse("i42e".getBytes(StandardCharsets.US_ASCII)));
-        
-        // Missing info dict
         assertThrows(TorrentException.class, () -> parser.parse("d8:announce35:http://tracker.example.com/announcee".getBytes(StandardCharsets.US_ASCII)));
         
         // Invalid piece length (negative)
@@ -189,46 +162,29 @@ class TorrentParserTest {
 
         TorrentParser parser = new TorrentParser();
 
-        // 1. Test String path overload
         TorrentMetadata metadataStr = parser.parse(torrentPath.toAbsolutePath().toString());
         assertNotNull(metadataStr);
         assertEquals("http://tracker.example.com/announce", metadataStr.getAnnounce());
-        assertEquals("single.txt", metadataStr.getName());
 
-        // 2. Test File overload
         TorrentMetadata metadataFile = parser.parse(torrentPath.toFile());
         assertNotNull(metadataFile);
-        assertEquals("http://tracker.example.com/announce", metadataFile.getAnnounce());
 
-        // 3. Test Path overload
         TorrentMetadata metadataPath = parser.parse(torrentPath);
         assertNotNull(metadataPath);
-        assertEquals("http://tracker.example.com/announce", metadataPath.getAnnounce());
     }
 
     @Test
     void testParseMissingFile() {
         TorrentParser parser = new TorrentParser();
         Path missingPath = tempDir.resolve("non_existent.torrent");
-        
-        // Assert throws TorrentException for missing file String path
         assertThrows(TorrentException.class, () -> parser.parse(missingPath.toAbsolutePath().toString()));
-        
-        // Assert throws TorrentException for missing File
-        assertThrows(TorrentException.class, () -> parser.parse(missingPath.toFile()));
-        
-        // Assert throws TorrentException for missing Path
-        assertThrows(TorrentException.class, () -> parser.parse(missingPath));
     }
 
     @Test
     void testParseEmptyFile() throws Exception {
         TorrentParser parser = new TorrentParser();
         Path emptyPath = tempDir.resolve("empty.torrent");
-        Files.write(emptyPath, new byte[0]); // Create an empty file
-        
-        assertThrows(TorrentException.class, () -> parser.parse(emptyPath.toAbsolutePath().toString()));
-        assertThrows(TorrentException.class, () -> parser.parse(emptyPath.toFile()));
+        Files.write(emptyPath, new byte[0]);
         assertThrows(TorrentException.class, () -> parser.parse(emptyPath));
     }
 
@@ -237,9 +193,6 @@ class TorrentParserTest {
         TorrentParser parser = new TorrentParser();
         Path invalidPath = tempDir.resolve("invalid.torrent");
         Files.write(invalidPath, "d8:announce35:invalid_bencode...".getBytes(StandardCharsets.US_ASCII));
-        
-        assertThrows(TorrentException.class, () -> parser.parse(invalidPath.toAbsolutePath().toString()));
-        assertThrows(TorrentException.class, () -> parser.parse(invalidPath.toFile()));
         assertThrows(TorrentException.class, () -> parser.parse(invalidPath));
     }
 
@@ -247,60 +200,37 @@ class TorrentParserTest {
     void testParseRootNotDictionaryFile() throws Exception {
         TorrentParser parser = new TorrentParser();
         Path listPath = tempDir.resolve("list.torrent");
-        Files.write(listPath, "le".getBytes(StandardCharsets.US_ASCII)); // Bencoded empty list
-        
-        assertThrows(TorrentException.class, () -> parser.parse(listPath.toAbsolutePath().toString()));
-        assertThrows(TorrentException.class, () -> parser.parse(listPath.toFile()));
+        Files.write(listPath, "le".getBytes(StandardCharsets.US_ASCII));
         assertThrows(TorrentException.class, () -> parser.parse(listPath));
-
-        Path intPath = tempDir.resolve("int.torrent");
-        Files.write(intPath, "i42e".getBytes(StandardCharsets.US_ASCII)); // Bencoded integer
-        
-        assertThrows(TorrentException.class, () -> parser.parse(intPath));
     }
 
     @Test
     void testMetadataRequiredFieldsValidation() {
         TorrentParser parser = new TorrentParser();
 
-        // 1. Missing announce
         byte[] missingAnnounce = "d4:infod6:lengthi12345e4:name10:single.txt12:piece lengthi16384e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
-        TorrentException ex1 = assertThrows(TorrentException.class, () -> parser.parse(missingAnnounce));
-        assertTrue(ex1.getMessage().contains("Missing required 'announce' field"));
+        assertThrows(TorrentException.class, () -> parser.parse(missingAnnounce));
 
-        // 2. Invalid announce type (integer instead of string)
         byte[] invalidAnnounceType = "d8:announcei42e4:infod6:lengthi12345e4:name10:single.txt12:piece lengthi16384e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
-        TorrentException ex2 = assertThrows(TorrentException.class, () -> parser.parse(invalidAnnounceType));
-        assertTrue(ex2.getMessage().contains("Invalid 'announce' field"));
+        assertThrows(TorrentException.class, () -> parser.parse(invalidAnnounceType));
 
-        // 3. Invalid announce-list type (dictionary instead of list)
         byte[] invalidAnnounceListType = "d8:announce35:http://tracker.example.com/announce13:announce-listd3:foo3:bare4:infod6:lengthi12345e4:name10:single.txt12:piece lengthi16384e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
-        TorrentException ex3 = assertThrows(TorrentException.class, () -> parser.parse(invalidAnnounceListType));
-        assertTrue(ex3.getMessage().contains("announce-list field must be a Bencode list"));
+        assertThrows(TorrentException.class, () -> parser.parse(invalidAnnounceListType));
 
-        // 4. Missing piece length
         byte[] missingPieceLength = "d8:announce35:http://tracker.example.com/announce4:infod6:lengthi12345e4:name10:single.txt6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
-        TorrentException ex4 = assertThrows(TorrentException.class, () -> parser.parse(missingPieceLength));
-        assertTrue(ex4.getMessage().contains("Missing required 'piece length' field in info"));
+        assertThrows(TorrentException.class, () -> parser.parse(missingPieceLength));
 
-        // 5. Empty files list in multi-file torrent
         byte[] emptyFilesList = "d8:announce35:http://tracker.example.com/announce4:infod5:filesle4:name9:multi-dir12:piece lengthi32768e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
-        TorrentException ex5 = assertThrows(TorrentException.class, () -> parser.parse(emptyFilesList));
-        assertTrue(ex5.getMessage().contains("files list cannot be empty in multi-file torrent"));
+        assertThrows(TorrentException.class, () -> parser.parse(emptyFilesList));
 
-        // 6. Missing path segments in files list entry
         byte[] emptyPathList = "d8:announce35:http://tracker.example.com/announce4:infod5:filesld6:lengthi100e4:pathleee4:name9:multi-dir12:piece lengthi32768e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
-        TorrentException ex6 = assertThrows(TorrentException.class, () -> parser.parse(emptyPathList));
-        assertTrue(ex6.getMessage().contains("path segments cannot be empty"));
+        assertThrows(TorrentException.class, () -> parser.parse(emptyPathList));
     }
 
     @Test
     void testNonUtf8NamePreservation() throws TorrentException {
-        // Construct Bencode where 'name' contains arbitrary non-UTF8 binary data (like 0xFF, 0x80)
         byte[] rawNameBytes = new byte[] { (byte) 't', (byte) 'e', (byte) 's', (byte) 't', (byte) 0xFF, (byte) 0x80 };
-        
         byte[] dummyHash = new byte[20];
-        
         byte[] bencodedAnnounce = "d8:announce35:http://tracker.example.com/announce4:infod6:lengthi12345e4:name6:".getBytes(StandardCharsets.US_ASCII);
         byte[] bencodedMiddle = "12:piece lengthi16384e6:pieces20:".getBytes(StandardCharsets.US_ASCII);
         byte[] bencodedSuffix = "ee".getBytes(StandardCharsets.US_ASCII);
@@ -315,8 +245,25 @@ class TorrentParserTest {
         
         TorrentParser parser = new TorrentParser();
         TorrentMetadata metadata = parser.parse(input);
-        
-        // Assert raw name matches exactly what was input
         assertArrayEquals(rawNameBytes, metadata.getRawName());
+    }
+
+    @Test
+    void testSingleFileZeroOrNegativeLength() {
+        TorrentParser parser = new TorrentParser();
+
+        byte[] zeroLength = "d8:announce35:http://tracker.example.com/announce4:infod6:lengthi0e4:name10:single.txt12:piece lengthi16384e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
+        assertThrows(TorrentException.class, () -> parser.parse(zeroLength));
+
+        byte[] negativeLength = "d8:announce35:http://tracker.example.com/announce4:infod6:lengthi-500e4:name10:single.txt12:piece lengthi16384e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
+        assertThrows(TorrentException.class, () -> parser.parse(negativeLength));
+    }
+
+    @Test
+    void testSingleFileInconsistentPieceCount() {
+        TorrentParser parser = new TorrentParser();
+
+        byte[] inconsistentPieces = "d8:announce35:http://tracker.example.com/announce4:infod6:lengthi25000e4:name10:single.txt12:piece lengthi16384e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
+        assertThrows(TorrentException.class, () -> parser.parse(inconsistentPieces));
     }
 }

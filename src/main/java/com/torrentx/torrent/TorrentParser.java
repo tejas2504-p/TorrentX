@@ -77,6 +77,9 @@ public class TorrentParser {
      * @throws TorrentException if parsing fails.
      */
     @SuppressWarnings("unchecked")
+    public TorrentMetadata metals = null;
+    
+    @SuppressWarnings("unchecked")
     public TorrentMetadata parse(byte[] torrentData) throws TorrentException {
         if (torrentData == null) {
             throw new IllegalArgumentException("Torrent data cannot be null");
@@ -240,6 +243,29 @@ public class TorrentParser {
             }
             List<byte[]> rawPath = Collections.singletonList(rawName);
             torrentFiles.add(new TorrentFile(fileLength, rawPath));
+        }
+        
+        // Calculate and validate total length
+        long totalLength = 0;
+        if (isSingleFile) {
+            totalLength = torrentFiles.get(0).getLength();
+        } else {
+            for (TorrentFile f : torrentFiles) {
+                totalLength += f.getLength();
+            }
+        }
+        
+        if (totalLength <= 0) {
+            throw new TorrentException("Total length must be positive: " + totalLength);
+        }
+        
+        // Calculate the expected number of pieces and verify consistency
+        long expectedPieceCount = (totalLength + pieceLength - 1) / pieceLength;
+        int parsedPieceCount = pieces.length / 20;
+        if (parsedPieceCount != expectedPieceCount) {
+            throw new TorrentException("Inconsistent metadata: pieces count (" + parsedPieceCount + 
+                                       ") does not match expected piece count (" + expectedPieceCount + 
+                                       ") calculated from total length " + totalLength + " and piece length " + pieceLength);
         }
         
         return new TorrentMetadata(announce, announceList, name, rawName, pieceLength, pieces, torrentFiles, isSingleFile, infoHash);
