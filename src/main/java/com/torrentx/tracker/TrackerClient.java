@@ -69,7 +69,7 @@ public class TrackerClient {
         }
 
         String fullUrl = TrackerRequestEncoder.encode(announceUrl, request);
-        logger.debug("Announcing to tracker: {}", fullUrl);
+        logger.debug("Announcing to tracker: {}", announceUrl);
 
         String userAgent = config.getClientName() + "/" + config.getClientVersion();
 
