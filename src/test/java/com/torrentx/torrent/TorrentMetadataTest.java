@@ -79,4 +79,146 @@ class TorrentMetadataTest {
         assertEquals(1500L, metadata.getTotalLength());
         assertArrayEquals(infoHash, metadata.getInfoHash());
     }
+
+    @Test
+    void testOnePiece() {
+        byte[] pieces = new byte[20];
+        pieces[0] = 7;
+        pieces[19] = 8;
+        
+        TorrentMetadata metadata = new TorrentMetadata(
+            "http://tracker.com",
+            null,
+            "test",
+            "test".getBytes(StandardCharsets.UTF_8),
+            16384,
+            pieces,
+            Collections.emptyList(),
+            true,
+            new byte[20]
+        );
+        
+        assertEquals(1, metadata.getPieceCount());
+        assertArrayEquals(pieces, metadata.getRawPieces());
+        assertEquals((byte) 7, metadata.getPieceHash(0)[0]);
+        assertEquals((byte) 8, metadata.getPieceHash(0)[19]);
+    }
+
+    @Test
+    void testMultiplePieces() {
+        byte[] pieces = new byte[60]; // 3 pieces
+        pieces[0] = 1;
+        pieces[20] = 2;
+        pieces[40] = 3;
+        
+        TorrentMetadata metadata = new TorrentMetadata(
+            "http://tracker.com",
+            null,
+            "test",
+            "test".getBytes(StandardCharsets.UTF_8),
+            16384,
+            pieces,
+            Collections.emptyList(),
+            true,
+            new byte[20]
+        );
+        
+        assertEquals(3, metadata.getPieceCount());
+        assertEquals((byte) 1, metadata.getPieceHash(0)[0]);
+        assertEquals((byte) 2, metadata.getPieceHash(1)[0]);
+        assertEquals((byte) 3, metadata.getPieceHash(2)[0]);
+        
+        List<byte[]> list = metadata.getPieces();
+        assertEquals(3, list.size());
+        assertArrayEquals(metadata.getPieceHash(0), list.get(0));
+        assertArrayEquals(metadata.getPieceHash(1), list.get(1));
+        assertArrayEquals(metadata.getPieceHash(2), list.get(2));
+    }
+
+    @Test
+    void testInvalidPiecesLength() {
+        // pieces length is 19 (not divisible by 20)
+        byte[] invalidPieces = new byte[19];
+        assertThrows(IllegalArgumentException.class, () -> new TorrentMetadata(
+            "http://tracker.com",
+            null,
+            "test",
+            "test".getBytes(StandardCharsets.UTF_8),
+            16384,
+            invalidPieces,
+            Collections.emptyList(),
+            true,
+            new byte[20]
+        ));
+
+        // null pieces list compatibility constructor test
+        List<byte[]> invalidPiecesList = new ArrayList<>();
+        invalidPiecesList.add(new byte[19]); // Entry not 20 bytes
+        assertThrows(IllegalArgumentException.class, () -> new TorrentMetadata(
+            "http://tracker.com",
+            new byte[20],
+            "test",
+            16384,
+            invalidPiecesList,
+            1000
+        ));
+    }
+
+    @Test
+    void testEmptyPieces() {
+        byte[] emptyPieces = new byte[0];
+        TorrentMetadata metadata = new TorrentMetadata(
+            "http://tracker.com",
+            null,
+            "test",
+            "test".getBytes(StandardCharsets.UTF_8),
+            16384,
+            emptyPieces,
+            Collections.emptyList(),
+            true,
+            new byte[20]
+        );
+        assertEquals(0, metadata.getPieceCount());
+        assertEquals(0, metadata.getRawPieces().length);
+    }
+
+    @Test
+    void testDefensiveCopying() {
+        String announce = "http://tracker.example.com/announce";
+        byte[] infoHash = new byte[20];
+        infoHash[0] = 1;
+        String name = "ubuntu-iso";
+        long pieceLength = 262144;
+        
+        byte[] pieces = new byte[40];
+        pieces[0] = 5;
+        pieces[20] = 6;
+
+        TorrentMetadata metadata = new TorrentMetadata(
+            announce,
+            null,
+            name,
+            name.getBytes(StandardCharsets.UTF_8),
+            pieceLength,
+            pieces,
+            Collections.emptyList(),
+            true,
+            infoHash
+        );
+
+        // Modify input array, assert metadata state does not change
+        pieces[0] = 99;
+        infoHash[0] = 99;
+        assertEquals((byte) 5, metadata.getPieceHash(0)[0]);
+        assertEquals((byte) 1, metadata.getInfoHash()[0]);
+
+        // Modify output array retrieved from getter, assert metadata state does not change
+        byte[] retrievedHash = metadata.getPieceHash(0);
+        retrievedHash[0] = 99;
+        assertEquals((byte) 5, metadata.getPieceHash(0)[0]);
+
+        byte[] retrievedRawPieces = metadata.getRawPieces();
+        retrievedRawPieces[0] = 99;
+        assertEquals((byte) 5, metadata.getPieceHash(0)[0]);
+    }
 }

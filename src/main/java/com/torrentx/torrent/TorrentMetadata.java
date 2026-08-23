@@ -31,7 +31,15 @@ public class TorrentMetadata {
         this.name = name;
         this.rawName = rawName != null ? rawName.clone() : new byte[0];
         this.pieceLength = pieceLength;
-        this.pieces = pieces != null ? pieces.clone() : new byte[0];
+        
+        if (pieces == null) {
+            throw new IllegalArgumentException("Pieces cannot be null");
+        }
+        if (pieces.length % 20 != 0) {
+            throw new IllegalArgumentException("Pieces length must be a multiple of 20: " + pieces.length);
+        }
+        this.pieces = pieces.clone();
+        
         this.files = files != null ? Collections.unmodifiableList(new ArrayList<>(files)) : Collections.emptyList();
         this.isSingleFile = isSingleFile;
         this.infoHash = infoHash != null ? infoHash.clone() : new byte[0];
@@ -63,9 +71,13 @@ public class TorrentMetadata {
         byte[] bytes = new byte[list.size() * 20];
         for (int i = 0; i < list.size(); i++) {
             byte[] p = list.get(i);
-            if (p != null) {
-                System.arraycopy(p, 0, bytes, i * 20, Math.min(p.length, 20));
+            if (p == null) {
+                throw new IllegalArgumentException("Piece hash entry cannot be null");
             }
+            if (p.length != 20) {
+                throw new IllegalArgumentException("Each piece hash must be exactly 20 bytes: " + p.length);
+            }
+            System.arraycopy(p, 0, bytes, i * 20, 20);
         }
         return bytes;
     }
@@ -80,6 +92,17 @@ public class TorrentMetadata {
 
     public byte[] getInfoHash() {
         return infoHash != null ? infoHash.clone() : null;
+    }
+
+    public String getInfoHashHex() {
+        if (infoHash == null) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder(infoHash.length * 2);
+        for (byte b : infoHash) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 
     public String getName() {

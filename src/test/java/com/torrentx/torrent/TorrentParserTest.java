@@ -70,10 +70,6 @@ class TorrentParserTest {
 
     @Test
     void testParseMultiFileTorrent() throws TorrentException {
-        // Multi-file total length must be consistent with piece length & actual piece hashes count.
-        // We set length of file A = 20000, file B = 30000. Total = 50000.
-        // Piece length = 32768. Expected pieces = (50000 + 32768 - 1) / 32768 = 2.
-        // We supply 40 bytes of dummy piece hashes (exactly 2 pieces).
         byte[] dummyHashes = new byte[40];
         dummyHashes[0] = 1;
         dummyHashes[20] = 2;
@@ -292,5 +288,37 @@ class TorrentParserTest {
 
         byte[] nameDot = "d8:announce35:http://tracker.example.com/announce4:infod6:lengthi12345e4:name1:.12:piece lengthi16384e6:pieces20:12345678901234567890ee".getBytes(StandardCharsets.US_ASCII);
         assertThrows(TorrentException.class, () -> parser.parse(nameDot));
+    }
+
+    @Test
+    void testInfoHashCalculationAndHex() throws TorrentException {
+        byte[] dummyHash = new byte[20];
+        dummyHash[0] = (byte) 0xAA;
+        
+        byte[] bencodedPrefix = "d8:announce35:http://tracker.example.com/announce4:infod6:lengthi12345e4:name10:single.txt12:piece lengthi16384e6:pieces20:".getBytes(StandardCharsets.US_ASCII);
+        byte[] bencodedSuffix = "ee".getBytes(StandardCharsets.US_ASCII);
+        byte[] input = new byte[bencodedPrefix.length + 20 + bencodedSuffix.length];
+        System.arraycopy(bencodedPrefix, 0, input, 0, bencodedPrefix.length);
+        System.arraycopy(dummyHash, 0, input, bencodedPrefix.length, 20);
+        System.arraycopy(bencodedSuffix, 0, input, bencodedPrefix.length + 20, bencodedSuffix.length);
+
+        TorrentParser parser = new TorrentParser();
+        TorrentMetadata metadata = parser.parse(input);
+
+        byte[] infoDictPrefix = "d6:lengthi12345e4:name10:single.txt12:piece lengthi16384e6:pieces20:".getBytes(StandardCharsets.US_ASCII);
+        byte[] infoDictSuffix = "e".getBytes(StandardCharsets.US_ASCII);
+        byte[] expectedInfoDictBytes = new byte[infoDictPrefix.length + 20 + infoDictSuffix.length];
+        System.arraycopy(infoDictPrefix, 0, expectedInfoDictBytes, 0, infoDictPrefix.length);
+        System.arraycopy(dummyHash, 0, expectedInfoDictBytes, infoDictPrefix.length, 20);
+        System.arraycopy(infoDictSuffix, 0, expectedInfoDictBytes, infoDictPrefix.length + 20, infoDictSuffix.length);
+
+        byte[] expectedSha1 = sha1(expectedInfoDictBytes);
+        assertArrayEquals(expectedSha1, metadata.getInfoHash());
+
+        StringBuilder sb = new StringBuilder();
+        for (byte b : expectedSha1) {
+            sb.append(String.format("%02x", b));
+        }
+        assertEquals(sb.toString(), metadata.getInfoHashHex());
     }
 }
