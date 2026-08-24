@@ -20,12 +20,14 @@ public class Config {
     private static final String DEFAULT_LOGGING_LEVEL = "INFO";
     private static final int DEFAULT_MAX_CONNECTIONS = 50;
     private static final int DEFAULT_CONNECTION_TIMEOUT = 5000;
+    private static final int DEFAULT_MAX_RETRIES = 3;
 
     private String clientName = DEFAULT_CLIENT_NAME;
     private String clientVersion = DEFAULT_CLIENT_VERSION;
     private File downloadDirectory;
     private int maxConnections = DEFAULT_MAX_CONNECTIONS;
     private int connectionTimeout = DEFAULT_CONNECTION_TIMEOUT;
+    private int maxRetries = DEFAULT_MAX_RETRIES;
     private String loggingLevel = DEFAULT_LOGGING_LEVEL;
 
     /**
@@ -127,6 +129,23 @@ public class Config {
                 this.connectionTimeout = DEFAULT_CONNECTION_TIMEOUT;
             }
         }
+ 
+        // Validate and parse tracker.max.retries
+        String retriesStr = props.getProperty("tracker.max.retries");
+        if (retriesStr != null) {
+            try {
+                int val = Integer.parseInt(retriesStr.trim());
+                if (val < 0) {
+                    logger.warn("Invalid tracker.max.retries value: {}. Must be non-negative. Falling back to default: {}", val, DEFAULT_MAX_RETRIES);
+                    this.maxRetries = DEFAULT_MAX_RETRIES;
+                } else {
+                    this.maxRetries = val;
+                }
+            } catch (NumberFormatException e) {
+                logger.warn("Non-numeric tracker.max.retries value: '{}'. Falling back to default: {}", retriesStr, DEFAULT_MAX_RETRIES);
+                this.maxRetries = DEFAULT_MAX_RETRIES;
+            }
+        }
     }
 
     public String getClientName() {
@@ -147,6 +166,10 @@ public class Config {
 
     public int getConnectionTimeout() {
         return connectionTimeout;
+    }
+
+    public int getMaxRetries() {
+        return maxRetries;
     }
 
     public String getLoggingLevel() {

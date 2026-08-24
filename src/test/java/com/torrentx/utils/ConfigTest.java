@@ -26,6 +26,7 @@ class ConfigTest {
         assertEquals("INFO", config.getLoggingLevel());
         assertEquals(50, config.getMaxConnections());
         assertEquals(5000, config.getConnectionTimeout());
+        assertEquals(3, config.getMaxRetries());
         assertNotNull(config.getDownloadDirectory());
     }
 
@@ -37,6 +38,7 @@ class ConfigTest {
         assertEquals("INFO", config.getLoggingLevel());
         assertEquals(50, config.getMaxConnections());
         assertEquals(5000, config.getConnectionTimeout());
+        assertEquals(3, config.getMaxRetries());
     }
 
     @Test
@@ -46,6 +48,7 @@ class ConfigTest {
                       "download.directory=MyTorrents\n" +
                       "max.connections=100\n" +
                       "connection.timeout=3000\n" +
+                      "tracker.max.retries=5\n" +
                       "logging.level=DEBUG\n";
         
         try (ByteArrayInputStream in = new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8))) {
@@ -57,6 +60,7 @@ class ConfigTest {
         assertEquals("DEBUG", config.getLoggingLevel());
         assertEquals(100, config.getMaxConnections());
         assertEquals(3000, config.getConnectionTimeout());
+        assertEquals(5, config.getMaxRetries());
         assertTrue(config.getDownloadDirectory().getPath().endsWith("MyTorrents"));
     }
 
@@ -74,6 +78,7 @@ class ConfigTest {
         assertEquals("INFO", config.getLoggingLevel());
         assertEquals(50, config.getMaxConnections());
         assertEquals(5000, config.getConnectionTimeout());
+        assertEquals(3, config.getMaxRetries());
     }
 
     @Test
@@ -131,5 +136,22 @@ class ConfigTest {
         File nonExistentFile = new File("this_file_does_not_exist.properties");
         config.load(nonExistentFile);
         assertEquals("TorrentX", config.getClientName());
+    }
+ 
+    @Test
+    void testLoadInvalidNumericMaxRetries() throws IOException {
+        // Test non-numeric string
+        String data = "tracker.max.retries=abc\n";
+        try (ByteArrayInputStream in = new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8))) {
+            config.load(in);
+        }
+        assertEquals(3, config.getMaxRetries(), "Should fall back to default when tracker.max.retries is non-numeric");
+ 
+        // Test negative number
+        data = "tracker.max.retries=-2\n";
+        try (ByteArrayInputStream in = new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8))) {
+            config.load(in);
+        }
+        assertEquals(3, config.getMaxRetries(), "Should fall back to default when tracker.max.retries is negative");
     }
 }

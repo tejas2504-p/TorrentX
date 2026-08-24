@@ -31,8 +31,9 @@ public class DefaultHttpConnector implements HttpConnector {
 
         HttpResponse<byte[]> httpResponse = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofByteArray());
 
-        if (httpResponse.statusCode() != 200) {
-            throw new IOException("HTTP error status code: " + httpResponse.statusCode());
+        int statusCode = httpResponse.statusCode();
+        if (statusCode != 200) {
+            throw new TrackerHttpException(statusCode, "HTTP error status code: " + statusCode);
         }
 
         return httpResponse.body();
