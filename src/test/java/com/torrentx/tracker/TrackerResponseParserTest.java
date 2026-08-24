@@ -318,4 +318,130 @@ class TrackerResponseParserTest {
         byte[] dataZeroPort = new byte[]{127, 0, 0, 1, 0, 0};
         assertThrows(TrackerException.class, () -> TrackerResponseParser.parseCompactPeers(dataZeroPort));
     }
+ 
+    @Test
+    void testParseDictionaryPeersNull() {
+        assertThrows(IllegalArgumentException.class, () -> TrackerResponseParser.parseDictionaryPeers(null));
+    }
+ 
+    @Test
+    void testParseDictionaryPeersZeroPeers() throws Exception {
+        List<PeerInfo> peers = TrackerResponseParser.parseDictionaryPeers(new java.util.ArrayList<>());
+        assertNotNull(peers);
+        assertTrue(peers.isEmpty());
+    }
+ 
+    @Test
+    void testParseDictionaryPeersSingleAndMultiple() throws Exception {
+        java.util.Map<String, Object> p1 = new java.util.HashMap<>();
+        p1.put("ip", "192.168.1.10".getBytes(StandardCharsets.UTF_8));
+        p1.put("port", 6881);
+        p1.put("peer id", "peer_id_123456789012".getBytes(StandardCharsets.UTF_8));
+ 
+        java.util.Map<String, Object> p2 = new java.util.HashMap<>();
+        p2.put("ip", "seed.example.com".getBytes(StandardCharsets.UTF_8));
+        p2.put("port", 8080);
+        // p2 has no peer id (allowed)
+ 
+        List<Object> list = java.util.Arrays.asList(p1, p2);
+        List<PeerInfo> peers = TrackerResponseParser.parseDictionaryPeers(list);
+ 
+        assertEquals(2, peers.size());
+ 
+        PeerInfo peer1 = peers.get(0);
+        assertEquals("192.168.1.10", peer1.getIp());
+        assertEquals(6881, peer1.getPort());
+        assertArrayEquals("peer_id_123456789012".getBytes(StandardCharsets.UTF_8), peer1.getPeerId());
+ 
+        PeerInfo peer2 = peers.get(1);
+        assertEquals("seed.example.com", peer2.getIp());
+        assertEquals(8080, peer2.getPort());
+        assertNull(peer2.getPeerId());
+    }
+ 
+    @Test
+    void testParseDictionaryPeersIPValidation() throws Exception {
+        // Valid IP/address representations
+        String[] validIPs = {"127.0.0.1", "2001:db8::1", "[2001:db8::1]", "seed.example.com", "my-host"};
+        for (String validIP : validIPs) {
+            java.util.Map<String, Object> p = new java.util.HashMap<>();
+            p.put("ip", validIP.getBytes(StandardCharsets.UTF_8));
+            p.put("port", 6881);
+            List<PeerInfo> res = TrackerResponseParser.parseDictionaryPeers(java.util.Collections.singletonList(p));
+            assertEquals(validIP, res.get(0).getIp());
+        }
+ 
+        // Invalid IP/address representations
+        String[] invalidIPs = {"", "127.0. 0.1", "127.0.0.1/24", "127.0.0.1%eth0", "invalid_char_#"};
+        for (String invalidIP : invalidIPs) {
+            java.util.Map<String, Object> p = new java.util.HashMap<>();
+            p.put("ip", invalidIP.getBytes(StandardCharsets.UTF_8));
+            p.put("port", 6881);
+            assertThrows(TrackerException.class, () -> TrackerResponseParser.parseDictionaryPeers(java.util.Collections.singletonList(p)));
+        }
+    }
+ 
+    @Test
+    void testParseDictionaryPeersPortValidation() throws Exception {
+        // Port 1 is valid
+        java.util.Map<String, Object> p1 = new java.util.HashMap<>();
+        p1.put("ip", "127.0.0.1".getBytes(StandardCharsets.UTF_8));
+        p1.put("port", 1);
+        List<PeerInfo> res1 = TrackerResponseParser.parseDictionaryPeers(java.util.Collections.singletonList(p1));
+        assertEquals(1, res1.get(0).getPort());
+ 
+        // Port 65535 is valid
+        java.util.Map<String, Object> p2 = new java.util.HashMap<>();
+        p2.put("ip", "127.0.0.1".getBytes(StandardCharsets.UTF_8));
+        p2.put("port", 65535);
+        List<PeerInfo> res2 = TrackerResponseParser.parseDictionaryPeers(java.util.Collections.singletonList(p2));
+        assertEquals(65535, res2.get(0).getPort());
+ 
+        // Port 0 is invalid
+        java.util.Map<String, Object> p3 = new java.util.HashMap<>();
+        p3.put("ip", "127.0.0.1".getBytes(StandardCharsets.UTF_8));
+        p3.put("port", 0);
+        assertThrows(TrackerException.class, () -> TrackerResponseParser.parseDictionaryPeers(java.util.Collections.singletonList(p3)));
+ 
+        // Port 65536 is invalid
+        java.util.Map<String, Object> p4 = new java.util.HashMap<>();
+        p4.put("ip", "127.0.0.1".getBytes(StandardCharsets.UTF_8));
+        p4.put("port", 65536);
+        assertThrows(TrackerException.class, () -> TrackerResponseParser.parseDictionaryPeers(java.util.Collections.singletonList(p4)));
+    }
+ 
+    @Test
+    void testParseDictionaryPeersMalformedEntries() {
+        // Element not a Map
+        assertThrows(TrackerException.class, () -> TrackerResponseParser.parseDictionaryPeers(java.util.Collections.singletonList("not-a-map")));
+ 
+        // Missing IP
+        java.util.Map<String, Object> p1 = new java.util.HashMap<>();
+        p1.put("port", 6881);
+        assertThrows(TrackerException.class, () -> TrackerResponseParser.parseDictionaryPeers(java.util.Collections.singletonList(p1)));
+ 
+        // IP not a byte array
+        java.util.Map<String, Object> p2 = new java.util.HashMap<>();
+        p2.put("ip", 12345);
+        p2.put("port", 6881);
+        assertThrows(TrackerException.class, () -> TrackerResponseParser.parseDictionaryPeers(java.util.Collections.singletonList(p2)));
+ 
+        // Missing Port
+        java.util.Map<String, Object> p3 = new java.util.HashMap<>();
+        p3.put("ip", "127.0.0.1".getBytes(StandardCharsets.UTF_8));
+        assertThrows(TrackerException.class, () -> TrackerResponseParser.parseDictionaryPeers(java.util.Collections.singletonList(p3)));
+ 
+        // Port not a Number
+        java.util.Map<String, Object> p4 = new java.util.HashMap<>();
+        p4.put("ip", "127.0.0.1".getBytes(StandardCharsets.UTF_8));
+        p4.put("port", "6881");
+        assertThrows(TrackerException.class, () -> TrackerResponseParser.parseDictionaryPeers(java.util.Collections.singletonList(p4)));
+ 
+        // Peer ID not a byte array
+        java.util.Map<String, Object> p5 = new java.util.HashMap<>();
+        p5.put("ip", "127.0.0.1".getBytes(StandardCharsets.UTF_8));
+        p5.put("port", 6881);
+        p5.put("peer id", 12345);
+        assertThrows(TrackerException.class, () -> TrackerResponseParser.parseDictionaryPeers(java.util.Collections.singletonList(p5)));
+    }
 }

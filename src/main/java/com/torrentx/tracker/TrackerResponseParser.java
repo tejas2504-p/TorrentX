@@ -187,7 +187,10 @@ public class TrackerResponseParser {
     }
  
     @SuppressWarnings("unchecked")
-    private static List<PeerInfo> parseDictionaryPeers(List<Object> peerList) throws TrackerException {
+    public static List<PeerInfo> parseDictionaryPeers(List<Object> peerList) throws TrackerException {
+        if (peerList == null) {
+            throw new IllegalArgumentException("Peer list cannot be null");
+        }
         List<PeerInfo> parsedPeers = new ArrayList<>();
  
         for (Object obj : peerList) {
@@ -203,6 +206,17 @@ public class TrackerResponseParser {
                 throw new TrackerException("Missing or invalid 'ip' in peer dictionary");
             }
             String ip = new String((byte[]) ipObj, StandardCharsets.UTF_8);
+            if (ip.isEmpty()) {
+                throw new TrackerException("Empty 'ip' in peer dictionary");
+            }
+            // Basic character validation for hostname/IP address representation
+            for (int k = 0; k < ip.length(); k++) {
+                char ch = ip.charAt(k);
+                if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') 
+                        || ch == '.' || ch == ':' || ch == '-' || ch == '[' || ch == ']')) {
+                    throw new TrackerException("Invalid character in IP/hostname: " + ch);
+                }
+            }
  
             // Extract Port
             Object portObj = peerMap.get("port");
