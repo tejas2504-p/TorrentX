@@ -157,7 +157,10 @@ public class TrackerResponseParser {
         return builder.build();
     }
  
-    private static List<PeerInfo> parseCompactPeers(byte[] compactPeers) throws TrackerException {
+    public static List<PeerInfo> parseCompactPeers(byte[] compactPeers) throws TrackerException {
+        if (compactPeers == null) {
+            throw new IllegalArgumentException("Compact peers data cannot be null");
+        }
         if (compactPeers.length % 6 != 0) {
             throw new TrackerException("Compact peer list length must be a multiple of 6: " + compactPeers.length);
         }

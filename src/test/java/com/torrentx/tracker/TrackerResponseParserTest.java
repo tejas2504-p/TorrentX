@@ -247,4 +247,75 @@ class TrackerResponseParserTest {
         assertEquals(6881, p.getPort());
         assertArrayEquals(rawPeerId, p.getPeerId());
     }
+ 
+    @Test
+    void testParseCompactPeersNull() {
+        assertThrows(IllegalArgumentException.class, () -> TrackerResponseParser.parseCompactPeers(null));
+    }
+ 
+    @Test
+    void testParseCompactPeersZeroPeers() throws Exception {
+        byte[] data = new byte[0];
+        List<PeerInfo> peers = TrackerResponseParser.parseCompactPeers(data);
+        assertNotNull(peers);
+        assertTrue(peers.isEmpty());
+    }
+ 
+    @Test
+    void testParseCompactPeersOnePeer() throws Exception {
+        // Peer: 192.168.1.100:6881 -> 192, 168, 1, 100, 0x1A, 0xE1
+        byte[] data = new byte[]{(byte) 192, (byte) 168, 1, 100, 0x1A, (byte) 0xE1};
+        List<PeerInfo> peers = TrackerResponseParser.parseCompactPeers(data);
+        assertEquals(1, peers.size());
+        PeerInfo p = peers.get(0);
+        assertEquals("192.168.1.100", p.getIp());
+        assertEquals(6881, p.getPort());
+        assertNull(p.getPeerId());
+    }
+ 
+    @Test
+    void testParseCompactPeersMultiplePeers() throws Exception {
+        // Peer 1: 192.168.1.100:6881 -> 192, 168, 1, 100, 0x1A, 0xE1
+        // Peer 2: 127.0.0.1:8080 -> 127, 0, 0, 1, 0x1F, 0x90
+        byte[] data = new byte[]{
+            (byte) 192, (byte) 168, 1, 100, 0x1A, (byte) 0xE1,
+            127, 0, 0, 1, 0x1F, (byte) 0x90
+        };
+        List<PeerInfo> peers = TrackerResponseParser.parseCompactPeers(data);
+        assertEquals(2, peers.size());
+ 
+        PeerInfo p1 = peers.get(0);
+        assertEquals("192.168.1.100", p1.getIp());
+        assertEquals(6881, p1.getPort());
+ 
+        PeerInfo p2 = peers.get(1);
+        assertEquals("127.0.0.1", p2.getIp());
+        assertEquals(8080, p2.getPort());
+    }
+ 
+    @Test
+    void testParseCompactPeersMalformedLength() {
+        // 5 bytes (should be multiple of 6)
+        byte[] data = new byte[]{127, 0, 0, 1, 0x1F};
+        assertThrows(TrackerException.class, () -> TrackerResponseParser.parseCompactPeers(data));
+    }
+ 
+    @Test
+    void testParseCompactPeersBoundaryPorts() throws Exception {
+        // Min valid port (1)
+        byte[] dataMinPort = new byte[]{127, 0, 0, 1, 0, 1};
+        List<PeerInfo> peersMin = TrackerResponseParser.parseCompactPeers(dataMinPort);
+        assertEquals(1, peersMin.size());
+        assertEquals(1, peersMin.get(0).getPort());
+ 
+        // Max valid port (65535)
+        byte[] dataMaxPort = new byte[]{127, 0, 0, 1, (byte) 255, (byte) 255};
+        List<PeerInfo> peersMax = TrackerResponseParser.parseCompactPeers(dataMaxPort);
+        assertEquals(1, peersMax.size());
+        assertEquals(65535, peersMax.get(0).getPort());
+ 
+        // Invalid port (0)
+        byte[] dataZeroPort = new byte[]{127, 0, 0, 1, 0, 0};
+        assertThrows(TrackerException.class, () -> TrackerResponseParser.parseCompactPeers(dataZeroPort));
+    }
 }
