@@ -209,6 +209,8 @@ class TrackerIntegrationTest {
         Config config = new Config() {
             @Override
             public int getMaxRetries() { return 1; }
+            @Override
+            public int getInitialRetryDelayMs() { return 1; }
         };
  
         TrackerClient client = new TrackerClient(config, mockHttpConnector);
@@ -236,6 +238,8 @@ class TrackerIntegrationTest {
         Config config = new Config() {
             @Override
             public int getMaxRetries() { return 1; }
+            @Override
+            public int getInitialRetryDelayMs() { return 1; }
         };
  
         TrackerClient client = new TrackerClient(config, mockHttpConnector);

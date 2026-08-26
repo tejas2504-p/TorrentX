@@ -37,6 +37,7 @@ com\torrentx\tracker\PeerInfo.class
 com\torrentx\tracker\TrackerRequestEncoder.class
 com\torrentx\tracker\TrackerResponse$Builder.class
 com\torrentx\network\SocketManager.class
+com\torrentx\tracker\TrackerSession.class
 com\torrentx\tracker\HttpConnector.class
 com\torrentx\security\HashVerifier.class
 com\torrentx\storage\PieceStorage.class
