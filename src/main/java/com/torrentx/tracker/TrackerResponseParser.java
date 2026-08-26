@@ -170,9 +170,9 @@ public class TrackerResponseParser {
         }
  
         List<PeerInfo> peerList = new ArrayList<>();
-        byte[] ipBytes = new byte[4];
  
         for (int i = 0; i < compactPeers.length; i += 6) {
+            byte[] ipBytes = new byte[4];
             System.arraycopy(compactPeers, i, ipBytes, 0, 4);
             int port = ((compactPeers[i + 4] & 0xFF) << 8) | (compactPeers[i + 5] & 0xFF);
             if (port < 1 || port > 65535) {
