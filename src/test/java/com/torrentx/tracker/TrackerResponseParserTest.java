@@ -444,4 +444,33 @@ class TrackerResponseParserTest {
         p5.put("peer id", 12345);
         assertThrows(TrackerException.class, () -> TrackerResponseParser.parseDictionaryPeers(java.util.Collections.singletonList(p5)));
     }
+
+    @Test
+    void testParseIntegerOverflowValues() {
+        // Interval overflow (> Integer.MAX_VALUE)
+        byte[] intervalOverflow = "d8:intervali2147483648e5:peers0:e".getBytes(StandardCharsets.ISO_8859_1);
+        assertThrows(TrackerException.class, () -> TrackerResponseParser.parse(intervalOverflow));
+
+        // Interval overflow with negative wraparound to positive (> Integer.MAX_VALUE)
+        byte[] intervalWraparound = "d8:intervali4294967297e5:peers0:e".getBytes(StandardCharsets.ISO_8859_1);
+        assertThrows(TrackerException.class, () -> TrackerResponseParser.parse(intervalWraparound));
+
+        // Min Interval overflow
+        byte[] minIntervalOverflow = "d8:intervali1800e12:min intervali2147483648e5:peers0:e".getBytes(StandardCharsets.ISO_8859_1);
+        assertThrows(TrackerException.class, () -> TrackerResponseParser.parse(minIntervalOverflow));
+
+        // Complete count overflow
+        byte[] completeOverflow = "d8:completei4294967297e8:intervali1800e5:peers0:e".getBytes(StandardCharsets.ISO_8859_1);
+        assertThrows(TrackerException.class, () -> TrackerResponseParser.parse(completeOverflow));
+
+        // Incomplete count overflow
+        byte[] incompleteOverflow = "d10:incompletei4294967297e8:intervali1800e5:peers0:e".getBytes(StandardCharsets.ISO_8859_1);
+        assertThrows(TrackerException.class, () -> TrackerResponseParser.parse(incompleteOverflow));
+
+        // Port overflow in peer dictionary (wraps to 1 if port = 4294967297)
+        java.util.Map<String, Object> p = new java.util.HashMap<>();
+        p.put("ip", "127.0.0.1".getBytes(StandardCharsets.UTF_8));
+        p.put("port", 4294967297L);
+        assertThrows(TrackerException.class, () -> TrackerResponseParser.parseDictionaryPeers(java.util.Collections.singletonList(p)));
+    }
 }

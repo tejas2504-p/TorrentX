@@ -83,25 +83,27 @@ public class TrackerResponseParser {
         if (!(intervalObj instanceof Number)) {
             throw new TrackerException("Invalid 'interval' field type: must be a number");
         }
-        int interval = ((Number) intervalObj).intValue();
-        if (interval < 0) {
-            throw new TrackerException("Interval cannot be negative: " + interval);
+        long intervalVal = ((Number) intervalObj).longValue();
+        if (intervalVal < 0 || intervalVal > Integer.MAX_VALUE) {
+            throw new TrackerException("Interval value out of valid integer range: " + intervalVal);
         }
+        int interval = (int) intervalVal;
         builder.interval(interval);
- 
+
         // Min Interval
         if (responseMap.containsKey("min interval")) {
             Object minIntervalObj = responseMap.get("min interval");
             if (!(minIntervalObj instanceof Number)) {
                 throw new TrackerException("Invalid 'min interval' field type: must be a number");
             }
-            int minInterval = ((Number) minIntervalObj).intValue();
-            if (minInterval < 0) {
-                throw new TrackerException("Min interval cannot be negative: " + minInterval);
+            long minIntervalVal = ((Number) minIntervalObj).longValue();
+            if (minIntervalVal < 0 || minIntervalVal > Integer.MAX_VALUE) {
+                throw new TrackerException("Min interval value out of valid integer range: " + minIntervalVal);
             }
+            int minInterval = (int) minIntervalVal;
             builder.minInterval(minInterval);
         }
- 
+
         // Tracker ID
         if (responseMap.containsKey("tracker id")) {
             Object trackerIdObj = responseMap.get("tracker id");
@@ -110,30 +112,32 @@ public class TrackerResponseParser {
             }
             builder.trackerId(new String((byte[]) trackerIdObj, StandardCharsets.UTF_8));
         }
- 
+
         // Complete (seeders)
         if (responseMap.containsKey("complete")) {
             Object completeObj = responseMap.get("complete");
             if (!(completeObj instanceof Number)) {
                 throw new TrackerException("Invalid 'complete' field type: must be a number");
             }
-            int complete = ((Number) completeObj).intValue();
-            if (complete < 0) {
-                throw new TrackerException("Complete count cannot be negative: " + complete);
+            long completeVal = ((Number) completeObj).longValue();
+            if (completeVal < 0 || completeVal > Integer.MAX_VALUE) {
+                throw new TrackerException("Complete count out of valid integer range: " + completeVal);
             }
+            int complete = (int) completeVal;
             builder.complete(complete);
         }
- 
+
         // Incomplete (leechers)
         if (responseMap.containsKey("incomplete")) {
             Object incompleteObj = responseMap.get("incomplete");
             if (!(incompleteObj instanceof Number)) {
                 throw new TrackerException("Invalid 'incomplete' field type: must be a number");
             }
-            int incomplete = ((Number) incompleteObj).intValue();
-            if (incomplete < 0) {
-                throw new TrackerException("Incomplete count cannot be negative: " + incomplete);
+            long incompleteVal = ((Number) incompleteObj).longValue();
+            if (incompleteVal < 0 || incompleteVal > Integer.MAX_VALUE) {
+                throw new TrackerException("Incomplete count out of valid integer range: " + incompleteVal);
             }
+            int incomplete = (int) incompleteVal;
             builder.incomplete(incomplete);
         }
  
@@ -223,10 +227,11 @@ public class TrackerResponseParser {
             if (!(portObj instanceof Number)) {
                 throw new TrackerException("Missing or invalid 'port' in peer dictionary");
             }
-            int port = ((Number) portObj).intValue();
-            if (port < 1 || port > 65535) {
-                throw new TrackerException("Invalid port number in peer dictionary: " + port);
+            long portVal = ((Number) portObj).longValue();
+            if (portVal < 1 || portVal > 65535) {
+                throw new TrackerException("Invalid port number in peer dictionary: " + portVal);
             }
+            int port = (int) portVal;
  
             // Extract Peer ID (optional)
             byte[] peerId = null;
