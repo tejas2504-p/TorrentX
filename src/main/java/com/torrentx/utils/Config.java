@@ -172,6 +172,10 @@ public class Config {
         return maxRetries;
     }
 
+    public int getInitialRetryDelayMs() {
+        return 1000;
+    }
+
     public String getLoggingLevel() {
         return loggingLevel;
     }

@@ -84,6 +84,8 @@ class TrackerClientTest {
         Config config = new Config() {
             @Override
             public int getMaxRetries() { return 3; }
+            @Override
+            public int getInitialRetryDelayMs() { return 1; }
         };
  
         TrackerClient client = new TrackerClient(config, mockHttpConnector);
@@ -110,6 +112,8 @@ class TrackerClientTest {
         Config config = new Config() {
             @Override
             public int getMaxRetries() { return 2; }
+            @Override
+            public int getInitialRetryDelayMs() { return 1; }
         };
  
         TrackerClient client = new TrackerClient(config, mockHttpConnector);
@@ -157,6 +161,8 @@ class TrackerClientTest {
         Config config = new Config() {
             @Override
             public int getMaxRetries() { return 3; }
+            @Override
+            public int getInitialRetryDelayMs() { return 1; }
         };
  
         TrackerClient client = new TrackerClient(config, mockHttpConnector);
@@ -233,6 +239,8 @@ class TrackerClientTest {
         Config config = new Config() {
             @Override
             public int getMaxRetries() { return 3; }
+            @Override
+            public int getInitialRetryDelayMs() { return 1; }
         };
  
         TrackerClient client = new TrackerClient(config, mockHttpConnector);
@@ -243,10 +251,82 @@ class TrackerClientTest {
                 .build();
  
         TrackerResponse response = client.announce("http://tracker.example.com/announce", request);
- 
+
         assertNotNull(response);
         assertTrue(response.isSuccessful());
         assertEquals(1800, response.getInterval());
         verify(mockHttpConnector, times(2)).get(anyString(), anyInt(), anyString());
+    }
+
+    @Test
+    void testAnnounceMissingPeers() throws Exception {
+        HttpConnector mockHttpConnector = mock(HttpConnector.class);
+        // Missing "peers" key
+        byte[] missingPeersResponse = "d8:intervali1800ee".getBytes(StandardCharsets.ISO_8859_1);
+        when(mockHttpConnector.get(anyString(), anyInt(), anyString())).thenReturn(missingPeersResponse);
+
+        TrackerClient client = new TrackerClient(new Config(), mockHttpConnector);
+        TrackerRequest request = new TrackerRequest.Builder()
+                .infoHash(new byte[20])
+                .peerId(new byte[20])
+                .build();
+
+        TrackerException exception = assertThrows(TrackerException.class,
+                () -> client.announce("http://tracker.example.com/announce", request));
+        assertTrue(exception.getMessage().contains("Missing required field: peers"));
+    }
+
+    @Test
+    void testAnnounceInvalidPeerData() throws Exception {
+        HttpConnector mockHttpConnector = mock(HttpConnector.class);
+        // Invalid compact peers format (length not multiple of 6, e.g. 5 bytes)
+        byte[] badPeersResponse = "d8:intervali1800e5:peers5:12345e".getBytes(StandardCharsets.ISO_8859_1);
+        when(mockHttpConnector.get(anyString(), anyInt(), anyString())).thenReturn(badPeersResponse);
+
+        TrackerClient client = new TrackerClient(new Config(), mockHttpConnector);
+        TrackerRequest request = new TrackerRequest.Builder()
+                .infoHash(new byte[20])
+                .peerId(new byte[20])
+                .build();
+
+        TrackerException exception = assertThrows(TrackerException.class,
+                () -> client.announce("http://tracker.example.com/announce", request));
+        assertTrue(exception.getMessage().contains("Compact peer list length must be a multiple of 6"));
+    }
+
+    @Test
+    void testAnnounceInvalidInterval() throws Exception {
+        HttpConnector mockHttpConnector = mock(HttpConnector.class);
+        // Invalid interval type (string instead of integer)
+        byte[] badIntervalResponse = "d8:interval5:1800e5:peers0:e".getBytes(StandardCharsets.ISO_8859_1);
+        when(mockHttpConnector.get(anyString(), anyInt(), anyString())).thenReturn(badIntervalResponse);
+
+        TrackerClient client = new TrackerClient(new Config(), mockHttpConnector);
+        TrackerRequest request = new TrackerRequest.Builder()
+                .infoHash(new byte[20])
+                .peerId(new byte[20])
+                .build();
+
+        TrackerException exception = assertThrows(TrackerException.class,
+                () -> client.announce("http://tracker.example.com/announce", request));
+        assertTrue(exception.getMessage().contains("Invalid 'interval' field type"));
+    }
+
+    @Test
+    void testAnnounceInvalidResponseStructure() throws Exception {
+        HttpConnector mockHttpConnector = mock(HttpConnector.class);
+        // Response root is a bencoded list instead of a dictionary
+        byte[] listResponse = "li1800ee".getBytes(StandardCharsets.ISO_8859_1);
+        when(mockHttpConnector.get(anyString(), anyInt(), anyString())).thenReturn(listResponse);
+
+        TrackerClient client = new TrackerClient(new Config(), mockHttpConnector);
+        TrackerRequest request = new TrackerRequest.Builder()
+                .infoHash(new byte[20])
+                .peerId(new byte[20])
+                .build();
+
+        TrackerException exception = assertThrows(TrackerException.class,
+                () -> client.announce("http://tracker.example.com/announce", request));
+        assertTrue(exception.getMessage().contains("Tracker response root is not a dictionary"));
     }
 }

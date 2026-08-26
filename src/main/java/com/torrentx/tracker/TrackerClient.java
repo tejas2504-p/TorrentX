@@ -79,20 +79,25 @@ public class TrackerClient {
         logger.debug("Announcing to tracker: {}", announceUrl);
  
         String userAgent = config.getClientName() + "/" + config.getClientVersion();
- 
+
         int attempt = 0;
-        long backoffDelayMs = 1000;
- 
+        long backoffDelayMs = config.getInitialRetryDelayMs();
+
         while (true) {
             attempt++;
             try {
                 byte[] body = httpConnector.get(fullUrl, timeoutMs, userAgent);
-                TrackerResponse response = TrackerResponseParser.parse(body);
-                if (!response.isSuccessful()) {
-                    throw new TrackerException("Tracker failure: " + response.getFailureReason());
+                try {
+                    TrackerResponse response = TrackerResponseParser.parse(body);
+                    if (!response.isSuccessful()) {
+                        throw new TrackerException("Tracker failure: " + response.getFailureReason());
+                    }
+                    return response;
+                } catch (TrackerException te) {
+                    logger.error("Failed to parse tracker response: {}", te.getMessage());
+                    throw te;
                 }
-                return response;
- 
+
             } catch (IOException | InterruptedException e) {
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();
