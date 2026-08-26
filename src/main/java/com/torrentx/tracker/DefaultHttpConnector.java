@@ -12,12 +12,29 @@ import java.time.Duration;
  */
 public class DefaultHttpConnector implements HttpConnector {
 
+    private static final HttpClient SHARED_CLIENT = HttpClient.newBuilder()
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build();
+
     private final HttpClient httpClient;
 
+    /**
+     * Constructs a DefaultHttpConnector using the shared HttpClient instance.
+     */
     public DefaultHttpConnector() {
-        this.httpClient = HttpClient.newBuilder()
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .build();
+        this(SHARED_CLIENT);
+    }
+
+    /**
+     * Constructs a DefaultHttpConnector using a custom HttpClient instance.
+     *
+     * @param httpClient the custom HttpClient to use.
+     */
+    public DefaultHttpConnector(HttpClient httpClient) {
+        if (httpClient == null) {
+            throw new IllegalArgumentException("HttpClient cannot be null");
+        }
+        this.httpClient = httpClient;
     }
 
     @Override
