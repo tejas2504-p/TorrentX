@@ -12,44 +12,12 @@ public class BitTorrentProtocolHandler implements ProtocolHandler {
     private static final int MAX_MESSAGE_SIZE = 32 * 1024; // 32KB max payload length
 
     public Handshake readHandshake(InputStream in) throws IOException {
-        DataInputStream dataIn = new DataInputStream(in);
-        
-        int pstrlen = dataIn.readUnsignedByte();
-        if (pstrlen != Handshake.PROTOCOL_IDENTIFIER.length()) {
-            throw new ProtocolException("Invalid protocol length: " + pstrlen);
-        }
-        
-        byte[] pstrBytes = new byte[pstrlen];
-        dataIn.readFully(pstrBytes);
-        String pstr = new String(pstrBytes, StandardCharsets.UTF_8);
-        if (!Handshake.PROTOCOL_IDENTIFIER.equals(pstr)) {
-            throw new ProtocolException("Unsupported protocol: " + pstr);
-        }
-        
-        byte[] reserved = new byte[8];
-        dataIn.readFully(reserved); // Skip reserved bytes
-        
-        byte[] infoHash = new byte[20];
-        dataIn.readFully(infoHash);
-        
-        byte[] peerId = new byte[20];
-        dataIn.readFully(peerId);
-        
-        return new Handshake(infoHash, peerId);
+        return HandshakeDecoder.decode(in);
     }
 
     public void writeHandshake(Handshake handshake, OutputStream out) throws IOException {
-        DataOutputStream dataOut = new DataOutputStream(out);
-        
-        byte[] pstrBytes = Handshake.PROTOCOL_IDENTIFIER.getBytes(StandardCharsets.UTF_8);
-        dataOut.writeByte(pstrBytes.length);
-        dataOut.write(pstrBytes);
-        
-        dataOut.write(new byte[8]); // Reserved bytes
-        dataOut.write(handshake.getInfoHash());
-        dataOut.write(handshake.getPeerId());
-        
-        dataOut.flush();
+        out.write(HandshakeEncoder.encode(handshake));
+        out.flush();
     }
 
     @Override
