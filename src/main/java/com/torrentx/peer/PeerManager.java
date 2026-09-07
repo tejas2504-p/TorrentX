@@ -183,7 +183,7 @@ public class PeerManager implements AutoCloseable {
         for (PeerConnection connection : activeConnections.values()) {
             long idleTime = now - connection.getLastActivityTime();
             
-            if (connection.getState() == PeerConnection.ConnectionState.HANDSHAKING && idleTime > HANDSHAKE_TIMEOUT_MS) {
+            if (connection.getState() == PeerConnectionState.HANDSHAKING && idleTime > HANDSHAKE_TIMEOUT_MS) {
                 System.out.println("Handshake timeout for " + connection.getPeerInfo());
                 disconnect(connection);
             } else if (idleTime > KEEPALIVE_TIMEOUT_MS) {

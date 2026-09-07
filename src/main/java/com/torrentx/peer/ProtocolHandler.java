@@ -13,7 +13,8 @@ public class ProtocolHandler {
     }
 
     public void handleConnect(PeerConnection connection) {
-        connection.setState(PeerConnection.ConnectionState.HANDSHAKING);
+        connection.transitionState(PeerConnectionState.CONNECTED);
+        connection.transitionState(PeerConnectionState.HANDSHAKING);
         
         PeerHandshake handshake = new PeerHandshake(localInfoHash, localPeerId);
         connection.writeData(handshake.toByteBuffer());
@@ -25,7 +26,7 @@ public class ProtocolHandler {
 
         try {
             while (readBuffer.hasRemaining()) {
-                if (connection.getState() == PeerConnection.ConnectionState.HANDSHAKING) {
+                if (connection.getState() == PeerConnectionState.HANDSHAKING) {
                     PeerHandshake handshake = PeerHandshake.parse(readBuffer);
                     if (handshake == null) {
                         break; // Need more data
@@ -36,8 +37,8 @@ public class ProtocolHandler {
                     }
 
                     connection.setRemotePeerId(handshake.getPeerId());
-                    connection.setState(PeerConnection.ConnectionState.ESTABLISHED);
-                } else if (connection.getState() == PeerConnection.ConnectionState.ESTABLISHED) {
+                    connection.transitionState(PeerConnectionState.READY);
+                } else if (connection.getState() == PeerConnectionState.READY) {
                     ByteBuffer payload = MessageCodec.decode(readBuffer);
                     if (payload == null) {
                         break; // Need more data

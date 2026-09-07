@@ -16,26 +16,18 @@ public class PeerConnection implements AutoCloseable {
     private final ByteBuffer readBuffer;
     private final Queue<ByteBuffer> writeQueue;
 
-    private ConnectionState state;
+    private final PeerStateManager stateManager;
     private long lastActivityTime;
     
     // Remote peer properties
     private byte[] remotePeerId;
-
-    public enum ConnectionState {
-        CONNECTING,
-        HANDSHAKING,
-        ESTABLISHED,
-        DISCONNECTING,
-        DISCONNECTED
-    }
 
     public PeerConnection(PeerInfo peerInfo, SocketChannel channel) {
         this.peerInfo = peerInfo;
         this.channel = channel;
         this.readBuffer = ByteBuffer.allocateDirect(32 * 1024); // 32KB
         this.writeQueue = new ConcurrentLinkedQueue<>();
-        this.state = ConnectionState.CONNECTING;
+        this.stateManager = new PeerStateManager();
         this.lastActivityTime = System.currentTimeMillis();
     }
 
@@ -63,12 +55,12 @@ public class PeerConnection implements AutoCloseable {
         return writeQueue;
     }
 
-    public ConnectionState getState() {
-        return state;
+    public PeerConnectionState getState() {
+        return stateManager.getState();
     }
 
-    public void setState(ConnectionState state) {
-        this.state = state;
+    public void transitionState(PeerConnectionState targetState) {
+        stateManager.transition(targetState);
     }
 
     public long getLastActivityTime() {
@@ -91,7 +83,7 @@ public class PeerConnection implements AutoCloseable {
      * Queues data to be written to the peer.
      */
     public void writeData(ByteBuffer data) {
-        if (state == ConnectionState.DISCONNECTED) {
+        if (getState() == PeerConnectionState.DISCONNECTED || getState() == PeerConnectionState.CLOSING) {
             return;
         }
         
@@ -106,7 +98,18 @@ public class PeerConnection implements AutoCloseable {
 
     @Override
     public void close() {
-        this.state = ConnectionState.DISCONNECTED;
+        try {
+            transitionState(PeerConnectionState.CLOSING);
+            transitionState(PeerConnectionState.DISCONNECTED);
+        } catch (IllegalStateException e) {
+            // If already FAILED or DISCONNECTED, it's fine
+            try {
+                if (getState() != PeerConnectionState.DISCONNECTED) {
+                    transitionState(PeerConnectionState.DISCONNECTED);
+                }
+            } catch (Exception ex) {}
+        }
+        
         if (selectionKey != null) {
             selectionKey.cancel();
         }
