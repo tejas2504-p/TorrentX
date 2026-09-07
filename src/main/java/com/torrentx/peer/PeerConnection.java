@@ -1,127 +1,121 @@
 package com.torrentx.peer;
 
-import com.torrentx.network.BitTorrentProtocolHandler;
-import com.torrentx.network.Handshake;
-import com.torrentx.network.Message;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import com.torrentx.tracker.PeerInfo;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.Socket;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class PeerConnection implements AutoCloseable {
+    private final PeerInfo peerInfo;
+    private final SocketChannel channel;
+    private SelectionKey selectionKey;
 
-    private static final Logger log = LoggerFactory.getLogger(PeerConnection.class);
-    private static final int SOCKET_TIMEOUT_MS = 120_000;
+    private final ByteBuffer readBuffer;
+    private final Queue<ByteBuffer> writeQueue;
 
-    public enum State {
-        CONNECTING, HANDSHAKE, CONNECTED, DISCONNECTING, DISCONNECTED
-    }
-
-    private final Peer peer;
-    private final Socket socket;
-    private final BitTorrentProtocolHandler protocolHandler;
-    private final BlockingQueue<Message> outboundQueue = new LinkedBlockingQueue<>();
-    private final MessageListener messageListener;
-    private volatile State state = State.CONNECTING;
+    private ConnectionState state;
+    private long lastActivityTime;
     
-    private Thread readThread;
-    private Thread writeThread;
+    // Remote peer properties
+    private byte[] remotePeerId;
 
-    public interface MessageListener {
-        void onHandshakeReceived(PeerConnection connection, Handshake handshake);
-        void onMessageReceived(PeerConnection connection, Message message);
-        void onDisconnected(PeerConnection connection);
+    public enum ConnectionState {
+        CONNECTING,
+        HANDSHAKING,
+        ESTABLISHED,
+        DISCONNECTING,
+        DISCONNECTED
     }
 
-    public PeerConnection(Peer peer, Socket socket, BitTorrentProtocolHandler protocolHandler, MessageListener messageListener) {
-        this.peer = peer;
-        this.socket = socket;
-        this.protocolHandler = protocolHandler;
-        this.messageListener = messageListener;
+    public PeerConnection(PeerInfo peerInfo, SocketChannel channel) {
+        this.peerInfo = peerInfo;
+        this.channel = channel;
+        this.readBuffer = ByteBuffer.allocateDirect(32 * 1024); // 32KB
+        this.writeQueue = new ConcurrentLinkedQueue<>();
+        this.state = ConnectionState.CONNECTING;
+        this.lastActivityTime = System.currentTimeMillis();
     }
 
-    public void start(Handshake localHandshake) throws IOException {
-        socket.setSoTimeout(SOCKET_TIMEOUT_MS);
-        this.state = State.HANDSHAKE;
-
-        this.writeThread = Thread.ofVirtual().name("PeerWrite-" + socket.getRemoteSocketAddress()).start(() -> writeLoop(localHandshake));
-        this.readThread = Thread.ofVirtual().name("PeerRead-" + socket.getRemoteSocketAddress()).start(this::readLoop);
+    public PeerInfo getPeerInfo() {
+        return peerInfo;
     }
 
-    private void writeLoop(Handshake localHandshake) {
-        try (OutputStream out = socket.getOutputStream()) {
-            protocolHandler.writeHandshake(localHandshake, out);
-            
-            while (state != State.DISCONNECTING && state != State.DISCONNECTED) {
-                Message msg = outboundQueue.take();
-                protocolHandler.writeMessage(msg, out);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        } catch (Exception e) {
-            log.error("Error in write loop for {}: {}", peer.getInfo().getIp(), e.getMessage());
-            disconnect();
-        }
+    public SocketChannel getChannel() {
+        return channel;
     }
 
-    private void readLoop() {
-        try (InputStream in = socket.getInputStream()) {
-            Handshake remoteHandshake = protocolHandler.readHandshake(in);
-            messageListener.onHandshakeReceived(this, remoteHandshake);
-            
-            state = State.CONNECTED;
-            
-            while (state != State.DISCONNECTING && state != State.DISCONNECTED) {
-                Message msg = protocolHandler.readMessage(in);
-                messageListener.onMessageReceived(this, msg);
-            }
-        } catch (Exception e) {
-            log.error("Error in read loop for {}: {}", peer.getInfo().getIp(), e.getMessage());
-            disconnect();
-        }
+    public SelectionKey getSelectionKey() {
+        return selectionKey;
     }
 
-    public void sendMessage(Message message) {
-        if (state == State.CONNECTED) {
-            outboundQueue.offer(message);
-        }
+    public void setSelectionKey(SelectionKey selectionKey) {
+        this.selectionKey = selectionKey;
     }
 
-    public void disconnect() {
-        if (state == State.DISCONNECTING || state == State.DISCONNECTED) {
+    public ByteBuffer getReadBuffer() {
+        return readBuffer;
+    }
+
+    public Queue<ByteBuffer> getWriteQueue() {
+        return writeQueue;
+    }
+
+    public ConnectionState getState() {
+        return state;
+    }
+
+    public void setState(ConnectionState state) {
+        this.state = state;
+    }
+
+    public long getLastActivityTime() {
+        return lastActivityTime;
+    }
+
+    public void updateActivityTime() {
+        this.lastActivityTime = System.currentTimeMillis();
+    }
+
+    public byte[] getRemotePeerId() {
+        return remotePeerId;
+    }
+
+    public void setRemotePeerId(byte[] remotePeerId) {
+        this.remotePeerId = remotePeerId;
+    }
+
+    /**
+     * Queues data to be written to the peer.
+     */
+    public void writeData(ByteBuffer data) {
+        if (state == ConnectionState.DISCONNECTED) {
             return;
         }
-        state = State.DISCONNECTING;
-        try {
-            socket.close();
-        } catch (IOException e) {
-            log.warn("Error closing socket", e);
-        }
         
-        if (readThread != null) readThread.interrupt();
-        if (writeThread != null) writeThread.interrupt();
+        // Ensure data is ready to be read from the buffer if it was just constructed
+        writeQueue.offer(data);
         
-        state = State.DISCONNECTED;
-        if (messageListener != null) {
-            messageListener.onDisconnected(this);
+        // Register for OP_WRITE if not already
+        if (selectionKey != null && selectionKey.isValid()) {
+            selectionKey.interestOps(selectionKey.interestOps() | SelectionKey.OP_WRITE);
         }
     }
 
     @Override
     public void close() {
-        disconnect();
-    }
-    
-    public State getState() {
-        return state;
-    }
-
-    public Peer getPeer() {
-        return peer;
+        this.state = ConnectionState.DISCONNECTED;
+        if (selectionKey != null) {
+            selectionKey.cancel();
+        }
+        try {
+            if (channel != null && channel.isOpen()) {
+                channel.close();
+            }
+        } catch (IOException e) {
+            // Ignore on close
+        }
     }
 }
