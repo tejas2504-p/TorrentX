@@ -13,15 +13,15 @@ public class Handshake {
         if (peerId == null || peerId.length != 20) {
             throw new IllegalArgumentException("peerId must be 20 bytes");
         }
-        this.infoHash = infoHash;
-        this.peerId = peerId;
+        this.infoHash = infoHash.clone();
+        this.peerId = peerId.clone();
     }
 
     public byte[] getInfoHash() {
-        return infoHash;
+        return infoHash.clone();
     }
 
     public byte[] getPeerId() {
-        return peerId;
+        return peerId.clone();
     }
 }
