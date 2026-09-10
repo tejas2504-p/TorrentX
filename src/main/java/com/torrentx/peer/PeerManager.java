@@ -24,20 +24,23 @@ public class PeerManager implements AutoCloseable {
 
     private final byte[] localInfoHash;
     private final byte[] localPeerId;
+    private final int maxConnections;
     
     private final Selector selector;
     private final ProtocolHandler protocolHandler;
     
     private final Map<SocketChannel, PeerConnection> activeConnections = new ConcurrentHashMap<>();
     private final Queue<PeerInfo> pendingPeers = new ConcurrentLinkedQueue<>();
+    private final java.util.Set<InetSocketAddress> knownAddresses = ConcurrentHashMap.newKeySet();
     
     private final ScheduledExecutorService timeoutExecutor;
     private volatile boolean running = false;
     private Thread reactorThread;
 
-    public PeerManager(byte[] localInfoHash, byte[] localPeerId) throws IOException {
+    public PeerManager(byte[] localInfoHash, byte[] localPeerId, int maxConnections) throws IOException {
         this.localInfoHash = localInfoHash;
         this.localPeerId = localPeerId;
+        this.maxConnections = maxConnections;
         this.selector = Selector.open();
         this.protocolHandler = new ProtocolHandler(localInfoHash, localPeerId);
         this.timeoutExecutor = Executors.newSingleThreadScheduledExecutor();
@@ -45,9 +48,18 @@ public class PeerManager implements AutoCloseable {
 
     public void addPeers(Iterable<PeerInfo> peers) {
         for (PeerInfo peer : peers) {
-            pendingPeers.offer(peer);
+            InetSocketAddress address = new InetSocketAddress(peer.getIp(), peer.getPort());
+            if (knownAddresses.add(address)) {
+                pendingPeers.offer(peer);
+            }
         }
         selector.wakeup();
+    }
+
+    public java.util.List<Peer> getConnectedPeers() {
+        return activeConnections.values().stream()
+                .map(PeerConnection::getPeerState)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     public void start() {
@@ -64,7 +76,7 @@ public class PeerManager implements AutoCloseable {
         while (running) {
             try {
                 // Try to establish new connections if we are below the limit
-                while (activeConnections.size() < MAX_CONNECTIONS) {
+                while (activeConnections.size() < maxConnections) {
                     PeerInfo peer = pendingPeers.poll();
                     if (peer == null) break;
                     initiateConnection(peer);
@@ -106,8 +118,9 @@ public class PeerManager implements AutoCloseable {
     }
 
     private void initiateConnection(PeerInfo peer) {
+        SocketChannel channel = null;
         try {
-            SocketChannel channel = SocketChannel.open();
+            channel = SocketChannel.open();
             channel.configureBlocking(false);
             
             PeerConnection connection = new PeerConnection(peer, channel);
@@ -118,6 +131,13 @@ public class PeerManager implements AutoCloseable {
             activeConnections.put(channel, connection);
         } catch (IOException e) {
             System.err.println("Failed to initiate connection to " + peer + ": " + e.getMessage());
+            if (channel != null) {
+                try {
+                    channel.close();
+                } catch (IOException ex) {
+                    // ignore
+                }
+            }
         }
     }
 
@@ -182,8 +202,9 @@ public class PeerManager implements AutoCloseable {
         long now = System.currentTimeMillis();
         for (PeerConnection connection : activeConnections.values()) {
             long idleTime = now - connection.getLastActivityTime();
+            long connectionTime = now - connection.getConnectionStartTime();
             
-            if (connection.getState() == PeerConnectionState.HANDSHAKING && idleTime > HANDSHAKE_TIMEOUT_MS) {
+            if (connection.getState() == PeerConnectionState.HANDSHAKING && connectionTime > HANDSHAKE_TIMEOUT_MS) {
                 System.out.println("Handshake timeout for " + connection.getPeerInfo());
                 disconnect(connection);
             } else if (idleTime > KEEPALIVE_TIMEOUT_MS) {
@@ -195,6 +216,8 @@ public class PeerManager implements AutoCloseable {
 
     public void disconnect(PeerConnection connection) {
         activeConnections.remove(connection.getChannel());
+        PeerInfo info = connection.getPeerInfo();
+        knownAddresses.remove(new InetSocketAddress(info.getIp(), info.getPort()));
         connection.close();
     }
 

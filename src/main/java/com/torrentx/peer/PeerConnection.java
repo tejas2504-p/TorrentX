@@ -17,10 +17,12 @@ public class PeerConnection implements AutoCloseable {
     private final Queue<ByteBuffer> writeQueue;
 
     private final PeerStateManager stateManager;
-    private long lastActivityTime;
+    private volatile long lastActivityTime;
+    private final long connectionStartTime;
     
     // Remote peer properties
     private byte[] remotePeerId;
+    private final Peer peerState;
 
     public PeerConnection(PeerInfo peerInfo, SocketChannel channel) {
         this.peerInfo = peerInfo;
@@ -28,7 +30,10 @@ public class PeerConnection implements AutoCloseable {
         this.readBuffer = ByteBuffer.allocateDirect(32 * 1024); // 32KB
         this.writeQueue = new ConcurrentLinkedQueue<>();
         this.stateManager = new PeerStateManager();
-        this.lastActivityTime = System.currentTimeMillis();
+        long now = System.currentTimeMillis();
+        this.lastActivityTime = now;
+        this.connectionStartTime = now;
+        this.peerState = new Peer(peerInfo);
     }
 
     public PeerInfo getPeerInfo() {
@@ -71,12 +76,20 @@ public class PeerConnection implements AutoCloseable {
         this.lastActivityTime = System.currentTimeMillis();
     }
 
+    public long getConnectionStartTime() {
+        return connectionStartTime;
+    }
+
     public byte[] getRemotePeerId() {
         return remotePeerId;
     }
 
     public void setRemotePeerId(byte[] remotePeerId) {
         this.remotePeerId = remotePeerId;
+    }
+
+    public Peer getPeerState() {
+        return peerState;
     }
 
     /**

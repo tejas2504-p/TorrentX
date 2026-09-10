@@ -5,6 +5,13 @@ package com.torrentx.network;
  */
 public class Message {
 
+    public static final byte ID_CHOKE = 0;
+    public static final byte ID_UNCHOKE = 1;
+    public static final byte ID_INTERESTED = 2;
+    public static final byte ID_NOT_INTERESTED = 3;
+    public static final byte ID_HAVE = 4;
+    public static final byte ID_BITFIELD = 5;
+
     private final boolean keepAlive;
     private final byte id;
     private final byte[] payload;
@@ -15,9 +22,33 @@ public class Message {
      * Constructs a Message with type ID and optional payload.
      */
     public Message(byte id, byte[] payload) {
+        if (payload == null) {
+            payload = new byte[0];
+        }
+        
+        switch (id) {
+            case ID_CHOKE:
+            case ID_UNCHOKE:
+            case ID_INTERESTED:
+            case ID_NOT_INTERESTED:
+                if (payload.length != 0) {
+                    throw new IllegalArgumentException("Message ID " + id + " must have 0-byte payload");
+                }
+                break;
+            case ID_HAVE:
+                if (payload.length != 4) {
+                    throw new IllegalArgumentException("Message ID " + id + " must have 4-byte payload");
+                }
+                break;
+            case ID_BITFIELD:
+                // Bitfield length depends on piece count, validated externally by BitfieldMessage
+                break;
+            // Other message types will be validated in later phases
+        }
+        
         this.keepAlive = false;
         this.id = id;
-        this.payload = payload;
+        this.payload = payload.clone(); // Immutable copy
     }
 
     private Message() {
@@ -30,6 +61,32 @@ public class Message {
         return KEEP_ALIVE_INSTANCE;
     }
 
+    public static Message choke() {
+        return new Message(ID_CHOKE, new byte[0]);
+    }
+
+    public static Message unchoke() {
+        return new Message(ID_UNCHOKE, new byte[0]);
+    }
+
+    public static Message interested() {
+        return new Message(ID_INTERESTED, new byte[0]);
+    }
+
+    public static Message notInterested() {
+        return new Message(ID_NOT_INTERESTED, new byte[0]);
+    }
+
+    public static Message have(int pieceIndex) {
+        java.nio.ByteBuffer buffer = java.nio.ByteBuffer.allocate(4);
+        buffer.putInt(pieceIndex);
+        return new Message(ID_HAVE, buffer.array());
+    }
+
+    public static Message bitfield(byte[] bitfield) {
+        return new Message(ID_BITFIELD, bitfield);
+    }
+
     public boolean isKeepAlive() {
         return keepAlive;
     }
@@ -39,6 +96,6 @@ public class Message {
     }
 
     public byte[] getPayload() {
-        return payload;
+        return payload.clone(); // Return defensive copy to maintain immutability
     }
 }
