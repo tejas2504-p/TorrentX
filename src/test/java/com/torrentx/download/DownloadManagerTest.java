@@ -12,6 +12,7 @@ import org.mockito.ArgumentCaptor;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -49,8 +50,33 @@ class DownloadManagerTest {
         @Override public void releaseAllPeerRequests(com.torrentx.tracker.PeerInfo peer) {}
     }
 
+    static class TestPieceSelector implements PieceSelector {
+        public int stubNextPiece = 0;
+        @Override public int selectNextPiece(com.torrentx.tracker.PeerInfo peer, PieceManager pieceManager, PieceAvailability availability) { return stubNextPiece; }
+    }
+
+    static class TestPieceAvailability extends PieceAvailability {
+        public TestPieceAvailability() { super(10); }
+        public boolean stubPeerHasPiece = false;
+        @Override public boolean peerHasPiece(com.torrentx.tracker.PeerInfo peer, int pieceIndex) { return stubPeerHasPiece; }
+        @Override public void processBitfield(com.torrentx.tracker.PeerInfo peer, byte[] bitfield) {}
+        @Override public void processHave(com.torrentx.tracker.PeerInfo peer, int pieceIndex) {}
+        @Override public void removePeer(com.torrentx.tracker.PeerInfo peer) {}
+        @Override public int getPieceFrequency(int pieceIndex) { return 0; }
+    }
+
+    static class TestPieceAssembler extends PieceAssembler {
+        public TestPieceAssembler(PieceManager pm) { super(pm); }
+        public boolean stubVerifyPiece = true;
+        public boolean verifyCalled = false;
+        @Override public boolean verifyPiece(int pieceIndex) { verifyCalled = true; return stubVerifyPiece; }
+    }
+
     private TestBlockSelector testBlockSelector;
     private TestPeerManager testPeerManager;
+    private TestPieceSelector testPieceSelector;
+    private TestPieceAvailability testPieceAvailability;
+    private TestPieceAssembler testPieceAssembler;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -62,14 +88,20 @@ class DownloadManagerTest {
         TorrentLayout mockLayout = new TorrentLayout(metadata, 16384); 
         mockPieceManager = new PieceManager(mockLayout);
         
-        mockPieceSelector = mock(PieceSelector.class);
+        testPieceSelector = new TestPieceSelector();
+        mockPieceSelector = testPieceSelector;
+        
         testBlockSelector = new TestBlockSelector(mockPieceManager);
         mockBlockSelector = testBlockSelector;
-        mockPieceAvailability = mock(PieceAvailability.class);
-        mockPieceAssembler = mock(PieceAssembler.class);
+        
+        testPieceAvailability = new TestPieceAvailability();
+        mockPieceAvailability = testPieceAvailability;
+        
+        testPieceAssembler = new TestPieceAssembler(mockPieceManager);
+        mockPieceAssembler = testPieceAssembler;
         
         downloadManager = new DownloadManager(mockPeerManager, mockPieceManager,  
-                mockPieceSelector, mockBlockSelector, mockPieceAvailability, mockPieceAssembler);
+                mockPieceSelector, mockBlockSelector, mockPieceAvailability, mockPieceAssembler, null);
     }
 
     @AfterEach
@@ -84,29 +116,39 @@ class DownloadManagerTest {
         // Just checking it doesn't crash on thread initialization/shutdown
     }
     
+    static class TestSelectionKey extends SelectionKey {
+        public boolean valid = true;
+        @Override public boolean isValid() { return valid; }
+        @Override public java.nio.channels.SelectableChannel channel() { return null; }
+        @Override public Selector selector() { return null; }
+        @Override public int interestOps() { return 0; }
+        @Override public SelectionKey interestOps(int ops) { return this; }
+        @Override public int readyOps() { return 0; }
+        @Override public void cancel() {}
+    }
+
+    static class TestPeerConnection extends PeerConnection {
+        public PeerConnectionState stubState = PeerConnectionState.READY;
+        public TestSelectionKey stubKey = new TestSelectionKey();
+        public TestPeerConnection(PeerInfo info) { super(info, null); }
+        @Override public PeerConnectionState getState() { return stubState; }
+        @Override public SelectionKey getSelectionKey() { return stubKey; }
+    }
+
     @Test
     void testCheckInterestedAndRequestBlocks() throws Exception {
         PeerInfo info = new PeerInfo("127.0.0.1", 6881, "peer1".getBytes());
-        PeerConnection mockConnection = mock(PeerConnection.class);
-        when(mockConnection.getPeerInfo()).thenReturn(info);
-        when(mockConnection.getState()).thenReturn(PeerConnectionState.READY);
+        TestPeerConnection mockConnection = new TestPeerConnection(info);
         
-        SelectionKey mockKey = mock(SelectionKey.class);
-        when(mockConnection.getSelectionKey()).thenReturn(mockKey);
-        when(mockKey.isValid()).thenReturn(true);
-        
-        Queue<ByteBuffer> writeQueue = new ConcurrentLinkedQueue<>();
-        when(mockConnection.getWriteQueue()).thenReturn(writeQueue);
-        
-        Peer peer = new Peer(info);
+        Peer peer = mockConnection.getPeerState();
         peer.setChokingMe(false); // Unchoked
-        when(mockConnection.getPeerState()).thenReturn(peer);
 
         testPeerManager.stubPeers.add(mockConnection);
+        Queue<ByteBuffer> writeQueue = mockConnection.getWriteQueue();
         
-        when(mockPieceAvailability.peerHasPiece(info, 0)).thenReturn(true);
+        testPieceAvailability.stubPeerHasPiece = true;
         
-        when(mockPieceSelector.selectNextPiece(info, mockPieceManager, mockPieceAvailability)).thenReturn(0);
+        testPieceSelector.stubNextPiece = 0;
         
         BlockRequest br1 = new BlockRequest(0, 0, 16384, info);
         testBlockSelector.stubRequests = Collections.singletonList(br1);
@@ -123,7 +165,6 @@ class DownloadManagerTest {
         boolean hasRequest = false;
         
         for (ByteBuffer buf : writeQueue) {
-            buf.flip();
             int len = buf.getInt();
             byte id = buf.get();
             if (id == 2) hasInterested = true;
@@ -138,12 +179,12 @@ class DownloadManagerTest {
     void testOnPieceCompletedVerifiesAsync() throws Exception {
         downloadManager.start();
         
-        when(mockPieceAssembler.verifyPiece(5)).thenReturn(true);
+        testPieceAssembler.stubVerifyPiece = true;
         downloadManager.onPieceCompleted(5);
         
         // Give the async pool a moment to run
         Thread.sleep(100);
         
-        verify(mockPieceAssembler, times(1)).verifyPiece(5);
+        assertTrue(testPieceAssembler.verifyCalled);
     }
 }

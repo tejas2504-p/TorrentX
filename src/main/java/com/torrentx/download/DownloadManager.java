@@ -7,6 +7,7 @@ import com.torrentx.peer.PeerConnectionState;
 import com.torrentx.peer.RequestMessage;
 import com.torrentx.tracker.PeerInfo;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -25,11 +26,16 @@ public class DownloadManager implements PieceCompletionListener, AutoCloseable {
     private final PieceAssembler pieceAssembler;
     
     private final ScheduledExecutorService scheduler;
+    private final DiskWriter diskWriter;
     private volatile boolean running;
+    
+    private final java.util.concurrent.atomic.AtomicLong downloadedBytes = new java.util.concurrent.atomic.AtomicLong(0);
+    private final java.util.concurrent.atomic.AtomicInteger completedPieces = new java.util.concurrent.atomic.AtomicInteger(0);
 
     public DownloadManager(PeerManager peerManager, PieceManager pieceManager, 
                            PieceSelector pieceSelector, BlockSelector blockSelector, 
-                           PieceAvailability pieceAvailability, PieceAssembler pieceAssembler) {
+                           PieceAvailability pieceAvailability, PieceAssembler pieceAssembler,
+                           DiskWriter diskWriter) {
         if (peerManager == null || pieceManager == null || pieceSelector == null ||
             blockSelector == null || pieceAvailability == null || pieceAssembler == null) {
             throw new IllegalArgumentException("Dependencies cannot be null");
@@ -40,8 +46,31 @@ public class DownloadManager implements PieceCompletionListener, AutoCloseable {
         this.blockSelector = blockSelector;
         this.pieceAvailability = pieceAvailability;
         this.pieceAssembler = pieceAssembler;
+        this.diskWriter = diskWriter;
         this.scheduler = Executors.newSingleThreadScheduledExecutor();
         this.peerManager.setPieceCompletionListener(this);
+    }
+    
+    public long getBytesDownloaded() {
+        return downloadedBytes.get();
+    }
+    
+    public int getCompletedPieces() {
+        return completedPieces.get();
+    }
+    
+    public double getDownloadPercentage() {
+        int total = pieceManager.getLayout().getTotalPieces();
+        if (total == 0) return 0.0;
+        return (completedPieces.get() * 100.0) / total;
+    }
+    
+    public int getActivePeers() {
+        return peerManager.getConnectedPeers().size();
+    }
+    
+    public boolean isComplete() {
+        return completedPieces.get() == pieceManager.getLayout().getTotalPieces();
     }
     
     public void start() {
@@ -60,7 +89,7 @@ public class DownloadManager implements PieceCompletionListener, AutoCloseable {
     }
     
     private void downloadTask() {
-        if (!running) return;
+        if (!running || isComplete()) return;
         
         for (PeerConnection connection : peerManager.getConnectedPeers()) {
             if (connection.getState() != PeerConnectionState.READY) {
@@ -157,7 +186,28 @@ public class DownloadManager implements PieceCompletionListener, AutoCloseable {
             boolean valid = pieceAssembler.verifyPiece(pieceIndex);
             if (valid) {
                 LOGGER.info("Piece " + pieceIndex + " successfully verified!");
-                // Future phase: Write to disk
+                try {
+                    byte[] data = pieceManager.getCompletedPieceData(pieceIndex);
+                    if (diskWriter != null && data != null) {
+                        diskWriter.writePiece(pieceIndex, data);
+                    }
+                    pieceManager.releaseCompletedPieceData(pieceIndex);
+                    LOGGER.info("Piece " + pieceIndex + " written to disk.");
+                    
+                    downloadedBytes.addAndGet(pieceManager.getLayout().getPiece(pieceIndex).getLength());
+                    int totalPieces = pieceManager.getLayout().getTotalPieces();
+                    int currentCompleted = completedPieces.incrementAndGet();
+                    
+                    LOGGER.info(String.format("Download Progress: %.2f%% (%d/%d pieces)", 
+                        (currentCompleted * 100.0) / totalPieces, currentCompleted, totalPieces));
+                    
+                    if (currentCompleted == totalPieces) {
+                        LOGGER.info("TORRENT DOWNLOAD COMPLETE!");
+                    }
+                } catch (IOException e) {
+                    LOGGER.log(java.util.logging.Level.SEVERE, "Failed to write piece " + pieceIndex, e);
+                    pieceManager.markPieceFailed(pieceIndex);
+                }
             } else {
                 LOGGER.warning("Piece " + pieceIndex + " failed verification!");
             }

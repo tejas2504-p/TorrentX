@@ -53,7 +53,10 @@ public class PeerManager implements AutoCloseable {
         this.protocolHandler.setPieceAvailability(pieceAvailability);
     }
 
+    private BlockSelector blockSelector;
+
     public void setBlockSelector(BlockSelector blockSelector) {
+        this.blockSelector = blockSelector;
         this.protocolHandler.setBlockSelector(blockSelector);
     }
 
@@ -231,6 +234,9 @@ public class PeerManager implements AutoCloseable {
         activeConnections.remove(connection.getChannel());
         PeerInfo info = connection.getPeerInfo();
         knownAddresses.remove(new InetSocketAddress(info.getIp(), info.getPort()));
+        if (blockSelector != null) {
+            blockSelector.releaseAllPeerRequests(info);
+        }
         connection.close();
     }
 

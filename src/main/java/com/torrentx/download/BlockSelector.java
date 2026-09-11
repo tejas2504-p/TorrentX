@@ -87,22 +87,36 @@ public class BlockSelector {
         return newRequests;
     }
     
-    /**
-     * Notifies the selector that a block was received.
-     * Routes the data payload to the PieceManager and frees the pipeline slot.
-     */
     public synchronized boolean markBlockReceived(PeerInfo peer, int pieceIndex, int offset, byte[] data) {
         String key = requestKey(pieceIndex, offset);
-        BlockRequest req = inFlightRequests.remove(key);
+        BlockRequest req = inFlightRequests.get(key);
         
-        if (req != null) {
-            AtomicInteger count = peerInFlightCounts.get(req.getPeer());
-            if (count != null) {
-                count.decrementAndGet();
-            }
+        if (req == null) {
+            return false; // Unsolicited or timed-out request
         }
         
-        return pieceManager.markBlockReceived(pieceIndex, offset, data);
+        if (!req.getPeer().equals(peer)) {
+            return false; // Requested by someone else
+        }
+        
+        if (req.getLength() != data.length) {
+            return false; // Invalid length for this request
+        }
+        
+        // Validation passed, remove from in-flight
+        inFlightRequests.remove(key);
+        
+        AtomicInteger count = peerInFlightCounts.get(req.getPeer());
+        if (count != null) {
+            count.decrementAndGet();
+        }
+        
+        try {
+            return pieceManager.markBlockReceived(pieceIndex, offset, data);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            // Already verified length and in-flight status, so this shouldn't normally happen
+            return false;
+        }
     }
     
     /**

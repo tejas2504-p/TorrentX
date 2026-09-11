@@ -177,4 +177,11 @@ public class PieceManager {
     public synchronized byte[] getCompletedPieceData(int pieceIndex) {
         return completedPiecesData.get(pieceIndex);
     }
+    
+    /**
+     * Releases memory held by the completed piece data after it has been safely flushed to disk.
+     */
+    public synchronized void releaseCompletedPieceData(int pieceIndex) {
+        completedPiecesData.remove(pieceIndex);
+    }
 }
