@@ -7,6 +7,7 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import com.torrentx.download.PieceAvailability;
 import com.torrentx.download.BlockSelector;
+import com.torrentx.download.PieceCompletionListener;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -56,6 +57,10 @@ public class PeerManager implements AutoCloseable {
         this.protocolHandler.setBlockSelector(blockSelector);
     }
 
+    public void setPieceCompletionListener(PieceCompletionListener listener) {
+        this.protocolHandler.setPieceCompletionListener(listener);
+    }
+
     public void addPeers(Iterable<PeerInfo> peers) {
         for (PeerInfo peer : peers) {
             InetSocketAddress address = new InetSocketAddress(peer.getIp(), peer.getPort());
@@ -66,10 +71,8 @@ public class PeerManager implements AutoCloseable {
         selector.wakeup();
     }
 
-    public java.util.List<Peer> getConnectedPeers() {
-        return activeConnections.values().stream()
-                .map(PeerConnection::getPeerState)
-                .collect(java.util.stream.Collectors.toList());
+    public java.util.List<PeerConnection> getConnectedPeers() {
+        return new java.util.ArrayList<>(activeConnections.values());
     }
 
     public void start() {

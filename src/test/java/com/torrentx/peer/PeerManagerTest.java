@@ -309,9 +309,9 @@ class PeerManagerTest {
             assertTrue(connectedLatch.await(2, TimeUnit.SECONDS));
             Thread.sleep(500); // Give reactor time to establish connection
             
-            java.util.List<Peer> connectedPeers = peerManager.getConnectedPeers();
+            java.util.List<PeerConnection> connectedPeers = peerManager.getConnectedPeers();
             assertEquals(1, connectedPeers.size(), "Should return exactly one connected peer");
-            assertEquals(serverSocket.getLocalPort(), connectedPeers.get(0).getInfo().getPort());
+            assertEquals(serverSocket.getLocalPort(), connectedPeers.get(0).getPeerInfo().getPort());
         }
     }
 }

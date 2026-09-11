@@ -39,7 +39,8 @@ class PeerIntegrationTest {
         long endTime = System.currentTimeMillis() + timeoutMs;
         while (System.currentTimeMillis() < endTime) {
             Thread.sleep(50);
-            for (Peer p : peerManager.getConnectedPeers()) {
+            for (PeerConnection pc : peerManager.getConnectedPeers()) {
+                Peer p = pc.getPeerState();
                 if (p.getInfo().getPort() == port) {
                     return p;
                 }

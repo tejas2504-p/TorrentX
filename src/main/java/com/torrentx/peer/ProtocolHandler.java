@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import com.torrentx.download.PieceAvailability;
 import com.torrentx.download.BlockSelector;
+import com.torrentx.download.PieceCompletionListener;
 
 public class ProtocolHandler {
     private final byte[] localInfoHash;
@@ -11,6 +12,7 @@ public class ProtocolHandler {
     
     private PieceAvailability pieceAvailability;
     private BlockSelector blockSelector;
+    private PieceCompletionListener pieceCompletionListener;
 
     public ProtocolHandler(byte[] localInfoHash, byte[] localPeerId) {
         this.localInfoHash = localInfoHash;
@@ -23,6 +25,10 @@ public class ProtocolHandler {
 
     public void setBlockSelector(BlockSelector blockSelector) {
         this.blockSelector = blockSelector;
+    }
+
+    public void setPieceCompletionListener(PieceCompletionListener listener) {
+        this.pieceCompletionListener = listener;
     }
 
     public void handleConnect(PeerConnection connection) {
@@ -85,6 +91,9 @@ public class ProtocolHandler {
                     if (payload.remaining() != 0) throw new IllegalStateException("Choke message must have 0-byte payload");
                     peer.setChokingMe(true);
                     LOGGER.info("Peer " + connection.getPeerInfo() + " choked us");
+                    if (blockSelector != null) {
+                        blockSelector.releaseAllPeerRequests(connection.getPeerInfo());
+                    }
                     break;
                 case 1: // unchoke
                     if (payload.remaining() != 0) throw new IllegalStateException("Unchoke message must have 0-byte payload");
@@ -126,8 +135,11 @@ public class ProtocolHandler {
                 case 7: // piece
                     PieceMessage pieceMessage = PieceMessage.parse(payload);
                     if (blockSelector != null) {
-                        blockSelector.markBlockReceived(connection.getPeerInfo(), pieceMessage.getPieceIndex(), 
+                        boolean completed = blockSelector.markBlockReceived(connection.getPeerInfo(), pieceMessage.getPieceIndex(), 
                                 pieceMessage.getBlockOffset(), pieceMessage.getBlockData());
+                        if (completed && pieceCompletionListener != null) {
+                            pieceCompletionListener.onPieceCompleted(pieceMessage.getPieceIndex());
+                        }
                     }
                     break;
                 default:
