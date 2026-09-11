@@ -118,21 +118,16 @@ public class ProtocolHandler {
                     }
                     break;
                 case 6: // request
-                    if (payload.remaining() != 12) throw new IllegalStateException("Request message must have 12-byte payload");
-                    int reqPiece = payload.getInt();
-                    int reqOffset = payload.getInt();
-                    int reqLength = payload.getInt();
-                    LOGGER.info("Peer " + connection.getPeerInfo() + " requested piece " + reqPiece + " offset " + reqOffset + " length " + reqLength);
+                    RequestMessage requestMessage = RequestMessage.parse(payload);
+                    LOGGER.info("Peer " + connection.getPeerInfo() + " requested piece " + requestMessage.getPieceIndex() + 
+                                " offset " + requestMessage.getBlockOffset() + " length " + requestMessage.getBlockLength());
                     // Upload logic not yet implemented
                     break;
                 case 7: // piece
-                    if (payload.remaining() < 8) throw new IllegalStateException("Piece message must have at least 8-byte payload");
-                    int pIndex = payload.getInt();
-                    int pOffset = payload.getInt();
-                    byte[] blockData = new byte[payload.remaining()];
-                    payload.get(blockData);
+                    PieceMessage pieceMessage = PieceMessage.parse(payload);
                     if (blockSelector != null) {
-                        blockSelector.markBlockReceived(connection.getPeerInfo(), pIndex, pOffset, blockData);
+                        blockSelector.markBlockReceived(connection.getPeerInfo(), pieceMessage.getPieceIndex(), 
+                                pieceMessage.getBlockOffset(), pieceMessage.getBlockData());
                     }
                     break;
                 default:

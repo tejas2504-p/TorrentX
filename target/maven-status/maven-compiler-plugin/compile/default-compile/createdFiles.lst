@@ -51,6 +51,7 @@ com\torrentx\network\Handshake.class
 com\torrentx\core\ClientManager.class
 com\torrentx\storage\package-info.class
 com\torrentx\tracker\PeerInfo.class
+com\torrentx\peer\PieceMessage.class
 com\torrentx\peer\ProtocolHandler.class
 com\torrentx\peer\PeerStateManager.class
 com\torrentx\peer\MessageCodec.class

@@ -37,7 +37,9 @@ C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\peer
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\peer\PeerManager.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\peer\PeerMessage.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\peer\PeerStateManager.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\peer\PieceMessage.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\peer\ProtocolHandler.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\peer\RequestMessage.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\security\HashVerifier.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\security\package-info.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\storage\FileManager.java
