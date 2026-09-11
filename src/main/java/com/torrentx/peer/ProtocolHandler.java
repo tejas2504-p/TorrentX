@@ -2,14 +2,27 @@ package com.torrentx.peer;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import com.torrentx.download.PieceAvailability;
+import com.torrentx.download.BlockSelector;
 
 public class ProtocolHandler {
     private final byte[] localInfoHash;
     private final byte[] localPeerId;
+    
+    private PieceAvailability pieceAvailability;
+    private BlockSelector blockSelector;
 
     public ProtocolHandler(byte[] localInfoHash, byte[] localPeerId) {
         this.localInfoHash = localInfoHash;
         this.localPeerId = localPeerId;
+    }
+
+    public void setPieceAvailability(PieceAvailability pieceAvailability) {
+        this.pieceAvailability = pieceAvailability;
+    }
+
+    public void setBlockSelector(BlockSelector blockSelector) {
+        this.blockSelector = blockSelector;
     }
 
     public void handleConnect(PeerConnection connection) {
@@ -92,13 +105,35 @@ public class ProtocolHandler {
                     if (payload.remaining() != 4) throw new IllegalStateException("Have message must have 4-byte payload");
                     int pieceIndex = payload.getInt();
                     LOGGER.info("Peer " + connection.getPeerInfo() + " has piece " + pieceIndex);
-                    // Piece availability tracking will be added later
+                    if (pieceAvailability != null) {
+                        pieceAvailability.processHave(connection.getPeerInfo(), pieceIndex);
+                    }
                     break;
                 case 5: // bitfield
                     byte[] bitfield = new byte[payload.remaining()];
                     payload.get(bitfield);
                     LOGGER.info("Peer " + connection.getPeerInfo() + " sent bitfield of length " + bitfield.length);
-                    // Bitfield tracking will be added later
+                    if (pieceAvailability != null) {
+                        pieceAvailability.processBitfield(connection.getPeerInfo(), bitfield);
+                    }
+                    break;
+                case 6: // request
+                    if (payload.remaining() != 12) throw new IllegalStateException("Request message must have 12-byte payload");
+                    int reqPiece = payload.getInt();
+                    int reqOffset = payload.getInt();
+                    int reqLength = payload.getInt();
+                    LOGGER.info("Peer " + connection.getPeerInfo() + " requested piece " + reqPiece + " offset " + reqOffset + " length " + reqLength);
+                    // Upload logic not yet implemented
+                    break;
+                case 7: // piece
+                    if (payload.remaining() < 8) throw new IllegalStateException("Piece message must have at least 8-byte payload");
+                    int pIndex = payload.getInt();
+                    int pOffset = payload.getInt();
+                    byte[] blockData = new byte[payload.remaining()];
+                    payload.get(blockData);
+                    if (blockSelector != null) {
+                        blockSelector.markBlockReceived(connection.getPeerInfo(), pIndex, pOffset, blockData);
+                    }
                     break;
                 default:
                     LOGGER.warning("Received unhandled or unknown message ID: " + messageId + " from " + connection.getPeerInfo());

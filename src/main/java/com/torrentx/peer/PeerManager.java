@@ -5,6 +5,8 @@ import com.torrentx.tracker.PeerInfo;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import com.torrentx.download.PieceAvailability;
+import com.torrentx.download.BlockSelector;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -44,6 +46,14 @@ public class PeerManager implements AutoCloseable {
         this.selector = Selector.open();
         this.protocolHandler = new ProtocolHandler(localInfoHash, localPeerId);
         this.timeoutExecutor = Executors.newSingleThreadScheduledExecutor();
+    }
+
+    public void setPieceAvailability(PieceAvailability pieceAvailability) {
+        this.protocolHandler.setPieceAvailability(pieceAvailability);
+    }
+
+    public void setBlockSelector(BlockSelector blockSelector) {
+        this.protocolHandler.setBlockSelector(blockSelector);
     }
 
     public void addPeers(Iterable<PeerInfo> peers) {

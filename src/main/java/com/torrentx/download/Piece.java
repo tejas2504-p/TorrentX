@@ -139,4 +139,16 @@ public class Piece {
             state = PieceState.DOWNLOADING;
         }
     }
+
+    /**
+     * Safely resets a block's requested status (e.g., when a request times out).
+     */
+    public synchronized void resetBlockRequested(int offset) {
+        for (Block b : blocks) {
+            if (b.getOffset() == offset) {
+                b.setRequested(false);
+                return;
+            }
+        }
+    }
 }

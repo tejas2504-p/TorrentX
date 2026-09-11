@@ -2,8 +2,15 @@ C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\benc
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\core\ClientManager.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\core\package-info.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\download\Block.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\download\BlockRequest.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\download\BlockSelector.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\download\Piece.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\download\PieceAssembler.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\download\PieceAvailability.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\download\PieceManager.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\download\PieceSelector.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\download\PieceState.java
+C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\download\RarestFirstPieceSelector.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\download\TorrentLayout.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\gui\MainController.java
 C:\Users\tejas\OneDrive\文件\Projects\TorrentX\src\main\java\com\torrentx\gui\MainWindow.java
