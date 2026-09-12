@@ -28,7 +28,7 @@ class IncomingPeerIntegrationTest {
         Arrays.fill(localPeerId, (byte) 8);
         
         peerManager = new PeerManager(localInfoHash, localPeerId, 5);
-        uploadManager = new UploadManager();
+        uploadManager = new UploadManager(4);
         peerManager.setUploadManager(uploadManager);
         peerManager.bind(0); // Random ephemeral port
         peerManager.start();

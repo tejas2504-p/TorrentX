@@ -1,5 +1,6 @@
 package com.torrentx.gui;
 
+import com.torrentx.gui.service.TorrentService;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -11,15 +12,17 @@ import javafx.stage.Stage;
 public class MainWindow {
 
     private final Stage stage;
+    private final TorrentService torrentService;
 
     /**
      * Constructs a MainWindow wrapper.
      */
-    public MainWindow(Stage stage) {
+    public MainWindow(Stage stage, TorrentService torrentService) {
         if (stage == null) {
             throw new IllegalArgumentException("Stage cannot be null");
         }
         this.stage = stage;
+        this.torrentService = torrentService;
     }
 
     /**
@@ -30,6 +33,9 @@ public class MainWindow {
     public void show() throws Exception {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/main.fxml"));
         Parent root = loader.load();
+        
+        MainController controller = loader.getController();
+        controller.setTorrentService(torrentService);
         
         Scene scene = new Scene(root, 950, 600);
         scene.getStylesheets().add(getClass().getResource("/ui/main.css").toExternalForm());

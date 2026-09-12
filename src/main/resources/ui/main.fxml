@@ -15,8 +15,10 @@
             <Text text="TorrentX" styleClass="logo-text"/>
             <Region HBox.hgrow="ALWAYS"/>
             <Button text="+ Add Torrent" onAction="#handleAddTorrent" styleClass="btn, btn-primary"/>
+            <Button text="Start" onAction="#handleStart" styleClass="btn, btn-secondary"/>
             <Button text="Pause" onAction="#handlePause" styleClass="btn, btn-secondary"/>
             <Button text="Resume" onAction="#handleResume" styleClass="btn, btn-secondary"/>
+            <Button text="Stop" onAction="#handleStop" styleClass="btn, btn-secondary"/>
             <Button text="Remove" onAction="#handleRemove" styleClass="btn, btn-danger"/>
         </HBox>
     </top>
@@ -44,11 +46,14 @@
                     <TableView fx:id="torrentTable" VBox.vgrow="ALWAYS" styleClass="torrent-table">
                         <columns>
                             <TableColumn fx:id="nameColumn" text="Name" prefWidth="250"/>
-                            <TableColumn fx:id="sizeColumn" text="Size" prefWidth="90"/>
-                            <TableColumn fx:id="progressColumn" text="Progress" prefWidth="180"/>
                             <TableColumn fx:id="statusColumn" text="Status" prefWidth="90"/>
-                            <TableColumn fx:id="downSpeedColumn" text="Down Speed" prefWidth="100"/>
-                            <TableColumn fx:id="upSpeedColumn" text="Up Speed" prefWidth="100"/>
+                            <TableColumn fx:id="progressColumn" text="Progress" prefWidth="150"/>
+                            <TableColumn fx:id="downSpeedColumn" text="Down Speed" prefWidth="90"/>
+                            <TableColumn fx:id="upSpeedColumn" text="Up Speed" prefWidth="90"/>
+                            <TableColumn fx:id="downloadedColumn" text="Downloaded" prefWidth="90"/>
+                            <TableColumn fx:id="uploadedColumn" text="Uploaded" prefWidth="90"/>
+                            <TableColumn fx:id="sizeColumn" text="Total Size" prefWidth="90"/>
+                            <TableColumn fx:id="etaColumn" text="ETA" prefWidth="80"/>
                             <TableColumn fx:id="peersColumn" text="Peers" prefWidth="80"/>
                         </columns>
                     </TableView>
