@@ -59,16 +59,23 @@ public class MainController {
     private void handleAddTorrent() {
         logger.info("Add Torrent clicked");
         if (torrentService != null) {
-            torrentService.executeTask(() -> {
-                logger.info("Executing add torrent logic in backend");
-                // Mock adding a torrent for UI testing purposes
-                Platform.runLater(() -> {
-                    torrentList.add(new TorrentRow(
-                        "ubuntu-24.04-desktop-amd64.iso", "Downloading", 0.05, 
-                        "2.5 MB/s", "100 KB/s", "150 MB", "5 MB", "3.0 GB", "15m", "25/40"
-                    ));
-                });
-            }, "Add Torrent");
+            // For now, load a dummy torrent file to test integration without a full FileChooser dialog
+            // We use a dummy file in the temp directory, or just mock it, but we can't fully run Add without a real torrent file.
+            // Wait, we need a .torrent file to test AddTorrent workflow correctly. 
+            // In a real flow, we'd open a FileChooser here. Let's do that quickly.
+            javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+            fileChooser.setTitle("Open Torrent File");
+            fileChooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("Torrent Files", "*.torrent"));
+            java.io.File file = fileChooser.showOpenDialog(torrentTable.getScene().getWindow());
+            
+            if (file != null) {
+                javafx.stage.DirectoryChooser dirChooser = new javafx.stage.DirectoryChooser();
+                dirChooser.setTitle("Select Download Directory");
+                java.io.File dir = dirChooser.showDialog(torrentTable.getScene().getWindow());
+                if (dir != null) {
+                    torrentService.addTorrent(file, dir, row -> torrentList.add(row));
+                }
+            }
         }
     }
 
@@ -77,10 +84,7 @@ public class MainController {
         logger.info("Start clicked");
         TorrentRow selected = torrentTable.getSelectionModel().getSelectedItem();
         if (selected != null && torrentService != null) {
-            torrentService.executeTask(() -> {
-                logger.info("Starting torrent: {}", selected.nameProperty().get());
-                Platform.runLater(() -> selected.statusProperty().set("Downloading"));
-            }, "Start Torrent");
+            torrentService.startTorrent(selected);
         }
     }
 
@@ -89,10 +93,7 @@ public class MainController {
         logger.info("Pause clicked");
         TorrentRow selected = torrentTable.getSelectionModel().getSelectedItem();
         if (selected != null && torrentService != null) {
-            torrentService.executeTask(() -> {
-                logger.info("Pausing torrent: {}", selected.nameProperty().get());
-                Platform.runLater(() -> selected.statusProperty().set("Paused"));
-            }, "Pause Torrent");
+            torrentService.pauseTorrent(selected);
         }
     }
 
@@ -107,10 +108,7 @@ public class MainController {
         logger.info("Stop clicked");
         TorrentRow selected = torrentTable.getSelectionModel().getSelectedItem();
         if (selected != null && torrentService != null) {
-            torrentService.executeTask(() -> {
-                logger.info("Stopping torrent: {}", selected.nameProperty().get());
-                Platform.runLater(() -> selected.statusProperty().set("Stopped"));
-            }, "Stop Torrent");
+            torrentService.stopTorrent(selected);
         }
     }
 
@@ -119,10 +117,8 @@ public class MainController {
         logger.info("Remove clicked");
         TorrentRow selected = torrentTable.getSelectionModel().getSelectedItem();
         if (selected != null && torrentService != null) {
-            torrentService.executeTask(() -> {
-                logger.info("Removing torrent: {}", selected.nameProperty().get());
-                Platform.runLater(() -> torrentList.remove(selected));
-            }, "Remove Torrent");
+            torrentService.removeTorrent(selected);
+            torrentList.remove(selected);
         }
     }
 }
