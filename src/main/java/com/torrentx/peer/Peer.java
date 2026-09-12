@@ -58,4 +58,14 @@ public class Peer {
     public void setInterestedInMe(boolean interestedInMe) {
         this.interestedInMe = interestedInMe;
     }
+
+    private java.util.concurrent.atomic.AtomicLong uploadedBytes = new java.util.concurrent.atomic.AtomicLong(0);
+
+    public long getUploadedBytes() {
+        return uploadedBytes.get();
+    }
+
+    public void addUploadedBytes(long bytes) {
+        this.uploadedBytes.addAndGet(bytes);
+    }
 }

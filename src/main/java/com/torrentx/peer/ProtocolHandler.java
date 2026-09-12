@@ -6,6 +6,8 @@ import com.torrentx.download.PieceAvailability;
 import com.torrentx.download.BlockSelector;
 import com.torrentx.download.PieceCompletionListener;
 
+import com.torrentx.upload.UploadManager;
+
 public class ProtocolHandler {
     private final byte[] localInfoHash;
     private final byte[] localPeerId;
@@ -13,6 +15,7 @@ public class ProtocolHandler {
     private PieceAvailability pieceAvailability;
     private BlockSelector blockSelector;
     private PieceCompletionListener pieceCompletionListener;
+    private UploadManager uploadManager;
 
     public ProtocolHandler(byte[] localInfoHash, byte[] localPeerId) {
         this.localInfoHash = localInfoHash;
@@ -31,10 +34,23 @@ public class ProtocolHandler {
         this.pieceCompletionListener = listener;
     }
 
+    public void setUploadManager(UploadManager uploadManager) {
+        this.uploadManager = uploadManager;
+    }
+
     public void handleConnect(PeerConnection connection) {
         connection.transitionState(PeerConnectionState.CONNECTED);
         connection.transitionState(PeerConnectionState.HANDSHAKING);
         
+        PeerHandshake handshake = new PeerHandshake(localInfoHash, localPeerId);
+        connection.writeData(handshake.toByteBuffer());
+    }
+
+    public void handleAccept(PeerConnection connection) {
+        connection.transitionState(PeerConnectionState.CONNECTED);
+        connection.transitionState(PeerConnectionState.HANDSHAKING);
+        // We could wait for the remote peer's handshake first, but sending ours immediately
+        // is also perfectly valid in BitTorrent and simplifies the state machine.
         PeerHandshake handshake = new PeerHandshake(localInfoHash, localPeerId);
         connection.writeData(handshake.toByteBuffer());
     }
@@ -104,11 +120,17 @@ public class ProtocolHandler {
                     if (payload.remaining() != 0) throw new IllegalStateException("Interested message must have 0-byte payload");
                     peer.setInterestedInMe(true);
                     LOGGER.info("Peer " + connection.getPeerInfo() + " is interested in us");
+                    if (uploadManager != null) {
+                        uploadManager.recalculateSlots();
+                    }
                     break;
                 case 3: // not interested
                     if (payload.remaining() != 0) throw new IllegalStateException("Not interested message must have 0-byte payload");
                     peer.setInterestedInMe(false);
                     LOGGER.info("Peer " + connection.getPeerInfo() + " is not interested in us");
+                    if (uploadManager != null) {
+                        uploadManager.recalculateSlots();
+                    }
                     break;
                 case 4: // have
                     if (payload.remaining() != 4) throw new IllegalStateException("Have message must have 4-byte payload");

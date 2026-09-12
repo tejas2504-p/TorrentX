@@ -19,6 +19,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.nio.channels.ServerSocketChannel;
+import com.torrentx.upload.UploadManager;
 
 public class PeerManager implements AutoCloseable {
     private static final int MAX_CONNECTIONS = 50;
@@ -39,6 +41,9 @@ public class PeerManager implements AutoCloseable {
     private final ScheduledExecutorService timeoutExecutor;
     private volatile boolean running = false;
     private Thread reactorThread;
+    
+    private ServerSocketChannel serverChannel;
+    private UploadManager uploadManager;
 
     public PeerManager(byte[] localInfoHash, byte[] localPeerId, int maxConnections) throws IOException {
         this.localInfoHash = localInfoHash;
@@ -58,6 +63,25 @@ public class PeerManager implements AutoCloseable {
     public void setBlockSelector(BlockSelector blockSelector) {
         this.blockSelector = blockSelector;
         this.protocolHandler.setBlockSelector(blockSelector);
+    }
+
+    public void setUploadManager(UploadManager uploadManager) {
+        this.uploadManager = uploadManager;
+        this.protocolHandler.setUploadManager(uploadManager);
+    }
+
+    public void bind(int port) throws IOException {
+        serverChannel = ServerSocketChannel.open();
+        serverChannel.configureBlocking(false);
+        serverChannel.bind(new InetSocketAddress(port));
+        serverChannel.register(selector, SelectionKey.OP_ACCEPT);
+    }
+
+    public int getBoundPort() {
+        if (serverChannel != null && serverChannel.socket() != null) {
+            return serverChannel.socket().getLocalPort();
+        }
+        return -1;
     }
 
     public void setPieceCompletionListener(PieceCompletionListener listener) {
@@ -111,7 +135,10 @@ public class PeerManager implements AutoCloseable {
                     PeerConnection connection = (PeerConnection) key.attachment();
                     
                     try {
-                        if (key.isConnectable()) {
+                        if (key.isAcceptable()) {
+                            handleAccept(key);
+                        }
+                        if (key.isConnectable() && connection != null) {
                             handleConnect(key, connection);
                         }
                         if (key.isReadable()) {
@@ -121,8 +148,12 @@ public class PeerManager implements AutoCloseable {
                             handleWrite(key, connection);
                         }
                     } catch (Exception e) {
-                        System.err.println("Connection error for " + connection.getPeerInfo() + ": " + e.getMessage());
-                        disconnect(connection);
+                        System.err.println("Connection error: " + e.getMessage());
+                        if (connection != null) {
+                            disconnect(connection);
+                        } else if (key.channel() instanceof SocketChannel) {
+                            try { key.channel().close(); } catch (IOException ignored) {}
+                        }
                     }
                 }
             } catch (IOException e) {
@@ -165,6 +196,29 @@ public class PeerManager implements AutoCloseable {
             protocolHandler.handleConnect(connection);
         } else {
             disconnect(connection);
+        }
+    }
+
+    private void handleAccept(SelectionKey key) throws IOException {
+        ServerSocketChannel server = (ServerSocketChannel) key.channel();
+        SocketChannel channel = server.accept();
+        if (channel != null) {
+            if (activeConnections.size() >= maxConnections) {
+                channel.close();
+                return;
+            }
+            channel.configureBlocking(false);
+            InetSocketAddress remoteAddr = (InetSocketAddress) channel.getRemoteAddress();
+            PeerInfo peerInfo = new PeerInfo(remoteAddr.getAddress().getHostAddress(), remoteAddr.getPort(), new byte[20]);
+            PeerConnection connection = new PeerConnection(peerInfo, channel);
+            SelectionKey clientKey = channel.register(selector, SelectionKey.OP_READ, connection);
+            connection.setSelectionKey(clientKey);
+            activeConnections.put(channel, connection);
+            protocolHandler.handleAccept(connection);
+            
+            if (uploadManager != null) {
+                uploadManager.registerPeer(connection);
+            }
         }
     }
 
@@ -237,6 +291,9 @@ public class PeerManager implements AutoCloseable {
         if (blockSelector != null) {
             blockSelector.releaseAllPeerRequests(info);
         }
+        if (uploadManager != null) {
+            uploadManager.unregisterPeer(connection);
+        }
         connection.close();
     }
 
@@ -258,6 +315,9 @@ public class PeerManager implements AutoCloseable {
         }
         
         try {
+            if (serverChannel != null) {
+                serverChannel.close();
+            }
             selector.close();
         } catch (IOException e) {
             // ignore

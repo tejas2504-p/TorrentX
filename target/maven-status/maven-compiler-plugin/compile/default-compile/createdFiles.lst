@@ -70,6 +70,7 @@ com\torrentx\peer\PeerStateManager$1.class
 com\torrentx\security\HashVerifier.class
 com\torrentx\storage\PieceStorage.class
 com\torrentx\download\DiskWriter$FileMapping.class
+com\torrentx\upload\UploadManager.class
 com\torrentx\tracker\TrackerResponseParser.class
 com\torrentx\download\Block.class
 com\torrentx\torrent\BencodeException.class
