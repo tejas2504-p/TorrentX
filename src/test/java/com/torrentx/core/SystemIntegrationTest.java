@@ -190,10 +190,7 @@ class SystemIntegrationTest {
                     bb.put((byte) 5);
                     bb.put(bitfield);
                     bb.flip();
-                    conn.getWriteQueue().offer(bb);
-                    if (conn.getSelectionKey() != null && conn.getSelectionKey().isValid()) {
-                        conn.getSelectionKey().interestOps(conn.getSelectionKey().interestOps() | java.nio.channels.SelectionKey.OP_WRITE);
-                    }
+                    conn.writeData(bb);
                 }
             }
         }

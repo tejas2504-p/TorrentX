@@ -106,6 +106,7 @@ public class PeerConnection implements AutoCloseable {
         // Register for OP_WRITE if not already
         if (selectionKey != null && selectionKey.isValid()) {
             selectionKey.interestOps(selectionKey.interestOps() | SelectionKey.OP_WRITE);
+            selectionKey.selector().wakeup();
         }
     }
 

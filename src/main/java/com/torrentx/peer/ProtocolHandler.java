@@ -175,20 +175,22 @@ public class ProtocolHandler {
                             try {
                                 byte[] blockData = diskWriter.readBlock(requestMessage.getPieceIndex(), requestMessage.getBlockOffset(), requestMessage.getBlockLength());
                                 PieceMessage pm = new PieceMessage(requestMessage.getPieceIndex(), requestMessage.getBlockOffset(), blockData);
-                                connection.getWriteQueue().offer(pm.toByteBuffer());
-                                if (connection.getSelectionKey() != null && connection.getSelectionKey().isValid()) {
-                                    connection.getSelectionKey().interestOps(
-                                        connection.getSelectionKey().interestOps() | java.nio.channels.SelectionKey.OP_WRITE
-                                    );
-                                }
+                                connection.writeData(pm.toByteBuffer());
+                                LOGGER.info("Successfully queued PieceMessage for piece " + requestMessage.getPieceIndex() + " offset " + requestMessage.getBlockOffset());
                             } catch (Exception e) {
                                 LOGGER.warning("Failed to serve block to " + connection.getPeerInfo() + ": " + e.getMessage());
+                                e.printStackTrace();
                             }
+                        } else {
+                            LOGGER.warning("Piece " + requestMessage.getPieceIndex() + " is NOT complete in pieceManager! isComplete: " + pieceManager.isPieceComplete(requestMessage.getPieceIndex()));
                         }
+                    } else {
+                        LOGGER.warning("pieceManager or diskWriter is NULL!");
                     }
                     break;
                 case 7: // piece
                     PieceMessage pieceMessage = PieceMessage.parse(payload);
+                    LOGGER.info("Peer " + connection.getPeerInfo() + " sent piece " + pieceMessage.getPieceIndex() + " offset " + pieceMessage.getBlockOffset());
                     if (blockSelector != null) {
                         boolean completed = blockSelector.markBlockReceived(connection.getPeerInfo(), pieceMessage.getPieceIndex(), 
                                 pieceMessage.getBlockOffset(), pieceMessage.getBlockData());

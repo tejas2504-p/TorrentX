@@ -93,22 +93,28 @@ public class DownloadManager implements PieceCompletionListener, AutoCloseable {
     }
     
     private void downloadTask() {
-        if (!running || isComplete()) return;
-        
-        for (PeerConnection connection : peerManager.getConnectedPeers()) {
-            if (connection.getState() != PeerConnectionState.READY) {
-                continue;
+        try {
+            if (!running || isComplete()) return;
+            
+            for (PeerConnection connection : peerManager.getConnectedPeers()) {
+                if (connection.getState() != PeerConnectionState.READY) {
+                    continue;
+                }
+                
+                // Check if we should be interested
+                checkInterested(connection);
+                
+                if (connection.getPeerState().isChokingMe()) {
+                    continue; // Cannot request blocks while choked
+                }
+                
+                // We are unchoked, try to request blocks
+                requestBlocksFromPeer(connection);
             }
-            
-            // Check if we should be interested
-            checkInterested(connection);
-            
-            if (connection.getPeerState().isChokingMe()) {
-                continue; // Cannot request blocks while choked
-            }
-            
-            // We are unchoked, try to request blocks
-            requestBlocksFromPeer(connection);
+            System.out.println("downloadTask completed successfully for this run.");
+        } catch (Throwable t) {
+            System.err.println("downloadTask THREW THROWABLE: " + t);
+            t.printStackTrace();
         }
     }
     
@@ -117,7 +123,6 @@ public class DownloadManager implements PieceCompletionListener, AutoCloseable {
         Peer peer = connection.getPeerState();
         boolean shouldBeInterested = false;
         
-        // Check if this peer has ANY piece we don't have
         for (int i = 0; i < pieceManager.getLayout().getTotalPieces(); i++) {
             if (!pieceManager.isPieceComplete(i) && pieceAvailability.peerHasPiece(peerInfo, i)) {
                 shouldBeInterested = true;
@@ -125,53 +130,44 @@ public class DownloadManager implements PieceCompletionListener, AutoCloseable {
             }
         }
         
+        System.out.println("checkInterested for " + peerInfo + " -> " + shouldBeInterested);
+        
         if (shouldBeInterested && !peer.isInterested()) {
             peer.setInterested(true);
-            // Send INTERESTED message (ID=2)
+            System.out.println("Sending INTERESTED message to " + peerInfo);
             ByteBuffer buffer = ByteBuffer.allocate(5);
             buffer.putInt(1);
             buffer.put((byte) 2);
             buffer.flip();
-            connection.getWriteQueue().offer(buffer);
-            if (connection.getSelectionKey() != null && connection.getSelectionKey().isValid()) {
-                connection.getSelectionKey().interestOps(
-                    connection.getSelectionKey().interestOps() | java.nio.channels.SelectionKey.OP_WRITE
-                );
-            }
+            connection.writeData(buffer);
         } else if (!shouldBeInterested && peer.isInterested()) {
             peer.setInterested(false);
-            // Send NOT INTERESTED message (ID=3)
+            // Send NOT_INTERESTED message (ID=3)
             ByteBuffer buffer = ByteBuffer.allocate(5);
             buffer.putInt(1);
             buffer.put((byte) 3);
             buffer.flip();
-            connection.getWriteQueue().offer(buffer);
-            if (connection.getSelectionKey() != null && connection.getSelectionKey().isValid()) {
-                connection.getSelectionKey().interestOps(
-                    connection.getSelectionKey().interestOps() | java.nio.channels.SelectionKey.OP_WRITE
-                );
-            }
+            connection.writeData(buffer);
         }
     }
     
     private void requestBlocksFromPeer(PeerConnection connection) {
         PeerInfo peerInfo = connection.getPeerInfo();
+        System.out.println("Trying to request blocks from " + peerInfo + " (isChokingMe: " + connection.getPeerState().isChokingMe() + ")");
         
-        int pieceIndex = pieceSelector.selectNextPiece(peerInfo, pieceManager, pieceAvailability);
-        if (pieceIndex == -1) {
-            return; // No piece to request from this peer
-        }
-        
-        List<BlockRequest> requests = blockSelector.selectBlocks(peerInfo, pieceIndex);
-        for (BlockRequest req : requests) {
-            RequestMessage reqMsg = new RequestMessage(req.getPieceIndex(), req.getOffset(), req.getLength());
-            connection.getWriteQueue().offer(reqMsg.toByteBuffer());
-        }
-        
-        if (!requests.isEmpty() && connection.getSelectionKey() != null && connection.getSelectionKey().isValid()) {
-            connection.getSelectionKey().interestOps(
-                connection.getSelectionKey().interestOps() | java.nio.channels.SelectionKey.OP_WRITE
-            );
+        // Very basic strategy: find first missing piece this peer has
+        for (int i = 0; i < pieceManager.getLayout().getTotalPieces(); i++) {
+            if (!pieceManager.isPieceComplete(i) && pieceAvailability.peerHasPiece(peerInfo, i)) {
+                // Request first block of this piece (simplified for Phase 8)
+                // Assuming block length is piece size or smaller
+                int blockSize = Math.min(16384, pieceManager.getLayout().getPiece(i).getLength());
+                
+                System.out.println("Requesting piece " + i + " block offset 0 length " + blockSize + " from " + peerInfo);
+                
+                RequestMessage requestMessage = new RequestMessage(i, 0, blockSize);
+                connection.writeData(requestMessage.toByteBuffer());
+                break; // Only request one block at a time for now
+            }
         }
     }
     

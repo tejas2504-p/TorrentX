@@ -145,19 +145,20 @@ public class PeerManager implements AutoCloseable {
                     PeerConnection connection = (PeerConnection) key.attachment();
                     
                     try {
-                        if (key.isAcceptable()) {
+                        if (key.isValid() && key.isAcceptable()) {
                             handleAccept(key);
                         }
-                        if (key.isConnectable() && connection != null) {
+                        if (key.isValid() && key.isConnectable() && connection != null) {
                             handleConnect(key, connection);
                         }
-                        if (key.isReadable()) {
+                        if (key.isValid() && key.isReadable()) {
                             handleRead(key, connection);
                         }
-                        if (key.isWritable()) {
+                        if (key.isValid() && key.isWritable()) {
                             handleWrite(key, connection);
                         }
                     } catch (Exception e) {
+                        e.printStackTrace();
                         System.err.println("Connection error: " + e.getMessage());
                         if (connection != null) {
                             disconnect(connection);

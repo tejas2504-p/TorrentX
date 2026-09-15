@@ -146,11 +146,6 @@ public class UploadManager implements AutoCloseable {
         buffer.put(messageId); // Message ID
         buffer.flip();
         
-        connection.getWriteQueue().offer(buffer);
-        
-        SelectionKey key = connection.getSelectionKey();
-        if (key != null && key.isValid()) {
-            key.interestOps(key.interestOps() | SelectionKey.OP_WRITE);
-        }
+        connection.writeData(buffer);
     }
 }
