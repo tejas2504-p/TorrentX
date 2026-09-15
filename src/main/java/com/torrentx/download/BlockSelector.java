@@ -92,14 +92,17 @@ public class BlockSelector {
         BlockRequest req = inFlightRequests.get(key);
         
         if (req == null) {
+            System.err.println("req is null for key: " + key);
             return false; // Unsolicited or timed-out request
         }
         
         if (!req.getPeer().equals(peer)) {
+            System.err.println("Peer mismatch: req.getPeer()=" + req.getPeer() + ", peer=" + peer);
             return false; // Requested by someone else
         }
         
         if (req.getLength() != data.length) {
+            System.err.println("Length mismatch: req.getLength()=" + req.getLength() + ", data.length=" + data.length);
             return false; // Invalid length for this request
         }
         
