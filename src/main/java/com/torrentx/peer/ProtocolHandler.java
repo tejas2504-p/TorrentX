@@ -7,6 +7,8 @@ import com.torrentx.download.BlockSelector;
 import com.torrentx.download.PieceCompletionListener;
 
 import com.torrentx.upload.UploadManager;
+import com.torrentx.download.PieceManager;
+import com.torrentx.download.DiskWriter;
 
 public class ProtocolHandler {
     private final byte[] localInfoHash;
@@ -16,6 +18,8 @@ public class ProtocolHandler {
     private BlockSelector blockSelector;
     private PieceCompletionListener pieceCompletionListener;
     private UploadManager uploadManager;
+    private PieceManager pieceManager;
+    private DiskWriter diskWriter;
 
     public ProtocolHandler(byte[] localInfoHash, byte[] localPeerId) {
         this.localInfoHash = localInfoHash;
@@ -36,6 +40,14 @@ public class ProtocolHandler {
 
     public void setUploadManager(UploadManager uploadManager) {
         this.uploadManager = uploadManager;
+    }
+
+    public void setPieceManager(PieceManager pieceManager) {
+        this.pieceManager = pieceManager;
+    }
+
+    public void setDiskWriter(DiskWriter diskWriter) {
+        this.diskWriter = diskWriter;
     }
 
     public void handleConnect(PeerConnection connection) {
@@ -152,7 +164,28 @@ public class ProtocolHandler {
                     RequestMessage requestMessage = RequestMessage.parse(payload);
                     LOGGER.info("Peer " + connection.getPeerInfo() + " requested piece " + requestMessage.getPieceIndex() + 
                                 " offset " + requestMessage.getBlockOffset() + " length " + requestMessage.getBlockLength());
-                    // Upload logic not yet implemented
+                    
+                    if (peer.isChoked()) {
+                        LOGGER.info("Dropping request from " + connection.getPeerInfo() + " because they are choked");
+                        break;
+                    }
+                    
+                    if (pieceManager != null && diskWriter != null) {
+                        if (pieceManager.isPieceComplete(requestMessage.getPieceIndex())) {
+                            try {
+                                byte[] blockData = diskWriter.readBlock(requestMessage.getPieceIndex(), requestMessage.getBlockOffset(), requestMessage.getBlockLength());
+                                PieceMessage pm = new PieceMessage(requestMessage.getPieceIndex(), requestMessage.getBlockOffset(), blockData);
+                                connection.getWriteQueue().offer(pm.toByteBuffer());
+                                if (connection.getSelectionKey() != null && connection.getSelectionKey().isValid()) {
+                                    connection.getSelectionKey().interestOps(
+                                        connection.getSelectionKey().interestOps() | java.nio.channels.SelectionKey.OP_WRITE
+                                    );
+                                }
+                            } catch (Exception e) {
+                                LOGGER.warning("Failed to serve block to " + connection.getPeerInfo() + ": " + e.getMessage());
+                            }
+                        }
+                    }
                     break;
                 case 7: // piece
                     PieceMessage pieceMessage = PieceMessage.parse(payload);

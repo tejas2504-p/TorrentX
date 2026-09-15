@@ -72,6 +72,7 @@ com\torrentx\network\BitTorrentProtocolHandler.class
 com\torrentx\peer\PeerStateManager$1.class
 com\torrentx\security\HashVerifier.class
 com\torrentx\storage\PieceStorage.class
+com\torrentx\gui\Launcher.class
 com\torrentx\download\DiskWriter$FileMapping.class
 com\torrentx\upload\UploadManager.class
 com\torrentx\tracker\TrackerResponseParser.class

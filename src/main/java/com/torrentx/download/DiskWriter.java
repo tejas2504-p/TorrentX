@@ -11,6 +11,8 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 /**
@@ -36,6 +38,7 @@ public class DiskWriter implements AutoCloseable {
     }
     
     private final List<FileMapping> fileMappings;
+    private final Map<Path, FileChannel> openChannels;
     
     public DiskWriter(TorrentMetadata metadata, Path baseDownloadDir) throws IOException {
         if (metadata == null || baseDownloadDir == null) {
@@ -47,6 +50,7 @@ public class DiskWriter implements AutoCloseable {
         Files.createDirectories(this.baseDownloadDir);
         
         this.fileMappings = new ArrayList<>();
+        this.openChannels = new ConcurrentHashMap<>();
         long currentGlobalOffset = 0;
         
         for (TorrentFile torrentFile : metadata.getFiles()) {
@@ -67,6 +71,17 @@ public class DiskWriter implements AutoCloseable {
             fileMappings.add(new FileMapping(filePath, currentGlobalOffset, torrentFile.getLength()));
             currentGlobalOffset += torrentFile.getLength();
         }
+    }
+    
+    private FileChannel getChannel(Path path) throws IOException {
+        return openChannels.computeIfAbsent(path, p -> {
+            try {
+                Files.createDirectories(p.getParent());
+                return FileChannel.open(p, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to open file channel for: " + p, e);
+            }
+        });
     }
     
     public void writePiece(int pieceIndex, byte[] data) throws IOException {
@@ -94,19 +109,15 @@ public class DiskWriter implements AutoCloseable {
                 int pieceLocalOffset = (int) (intersectStart - globalStart);
                 int lengthToWrite = (int) (intersectEnd - intersectStart);
                 
-                Files.createDirectories(mapping.absolutePath.getParent());
-                
-                try (FileChannel channel = FileChannel.open(mapping.absolutePath, 
-                        StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
-                    ByteBuffer buffer = ByteBuffer.wrap(data, pieceLocalOffset, lengthToWrite);
-                    long currentFileOffset = fileLocalOffset;
-                    while (buffer.hasRemaining()) {
-                        int written = channel.write(buffer, currentFileOffset);
-                        if (written <= 0) {
-                            throw new IOException("Failed to write data to file channel");
-                        }
-                        currentFileOffset += written;
+                FileChannel channel = getChannel(mapping.absolutePath);
+                ByteBuffer buffer = ByteBuffer.wrap(data, pieceLocalOffset, lengthToWrite);
+                long currentFileOffset = fileLocalOffset;
+                while (buffer.hasRemaining()) {
+                    int written = channel.write(buffer, currentFileOffset);
+                    if (written <= 0) {
+                        throw new IOException("Failed to write data to file channel");
                     }
+                    currentFileOffset += written;
                 }
                 
                 bytesWritten += lengthToWrite;
@@ -117,8 +128,59 @@ public class DiskWriter implements AutoCloseable {
         }
     }
 
+    public byte[] readBlock(int pieceIndex, int offset, int length) throws IOException {
+        if (pieceIndex < 0 || pieceIndex >= metadata.getPieceCount()) {
+            throw new IllegalArgumentException("Invalid piece index: " + pieceIndex);
+        }
+        
+        long globalStart = (pieceIndex * metadata.getPieceLength()) + offset;
+        long globalEnd = globalStart + length;
+        
+        if (globalEnd > metadata.getTotalLength()) {
+            throw new IllegalArgumentException("Requested block exceeds total torrent length");
+        }
+        
+        byte[] blockData = new byte[length];
+        int bytesRead = 0;
+        
+        for (FileMapping mapping : fileMappings) {
+            long mappingEnd = mapping.startOffset + mapping.length;
+            
+            if (globalStart < mappingEnd && globalEnd > mapping.startOffset) {
+                long intersectStart = Math.max(globalStart, mapping.startOffset);
+                long intersectEnd = Math.min(globalEnd, mappingEnd);
+                
+                long fileLocalOffset = intersectStart - mapping.startOffset;
+                int blockLocalOffset = (int) (intersectStart - globalStart);
+                int lengthToRead = (int) (intersectEnd - intersectStart);
+                
+                FileChannel channel = getChannel(mapping.absolutePath);
+                ByteBuffer buffer = ByteBuffer.wrap(blockData, blockLocalOffset, lengthToRead);
+                long currentFileOffset = fileLocalOffset;
+                while (buffer.hasRemaining()) {
+                    int read = channel.read(buffer, currentFileOffset);
+                    if (read < 0) {
+                        throw new IOException("Unexpected end of file reached while reading");
+                    }
+                    currentFileOffset += read;
+                }
+                
+                bytesRead += lengthToRead;
+                if (bytesRead == length) {
+                    break;
+                }
+            }
+        }
+        return blockData;
+    }
+
     @Override
     public void close() throws Exception {
-        // Future optimization: cache and close FileChannels instead of opening per write
+        for (FileChannel channel : openChannels.values()) {
+            if (channel != null && channel.isOpen()) {
+                channel.close();
+            }
+        }
+        openChannels.clear();
     }
 }

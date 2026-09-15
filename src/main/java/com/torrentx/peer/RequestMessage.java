@@ -20,6 +20,9 @@ public class RequestMessage implements PeerMessage {
         if (blockLength <= 0 || blockLength > MessageCodec.MAX_MESSAGE_LENGTH - 9) {
             throw new IllegalArgumentException("Invalid block length: " + blockLength);
         }
+        if ((long) blockOffset + blockLength > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Block offset and length overflow");
+        }
         this.pieceIndex = pieceIndex;
         this.blockOffset = blockOffset;
         this.blockLength = blockLength;

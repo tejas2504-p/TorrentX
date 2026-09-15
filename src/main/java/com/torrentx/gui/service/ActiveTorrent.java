@@ -71,6 +71,8 @@ public class ActiveTorrent {
         peerManager.setBlockSelector(blockSelector);
 
         diskWriter = new DiskWriter(metadata, saveDir);
+        peerManager.setPieceManager(pieceManager);
+        peerManager.setDiskWriter(diskWriter);
 
         uploadManager = new UploadManager(4);
         peerManager.setUploadManager(uploadManager);

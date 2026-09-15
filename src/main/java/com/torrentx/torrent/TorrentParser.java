@@ -190,6 +190,9 @@ public class TorrentParser {
         if ("..".equals(name) || ".".equals(name)) {
             throw new TorrentException("Torrent name is invalid (directory traversal or relative path)");
         }
+        if (name.contains("/") || name.contains("\\")) {
+            throw new TorrentException("Torrent name cannot contain directory separators");
+        }
         
         // Parse single or multi file layout
         List<TorrentFile> torrentFiles = new ArrayList<>();
@@ -239,6 +242,9 @@ public class TorrentParser {
                     }
                     if (".".equals(segmentStr)) {
                         throw new TorrentException("Path segment '.' is not allowed");
+                    }
+                    if (segmentStr.contains("/") || segmentStr.contains("\\")) {
+                        throw new TorrentException("Path segment cannot contain directory separators");
                     }
                     rawPath.add(segmentBytes);
                 }

@@ -46,7 +46,7 @@ public class BencodeDecoder {
             throw new BencodeException("Empty data input");
         }
         
-        Object result = parseValue();
+        Object result = parseValue(0);
         
         if (index < data.length) {
             throw new BencodeException("Trailing bytes found at index " + index);
@@ -69,7 +69,10 @@ public class BencodeDecoder {
         return infoBytes;
     }
 
-    private Object parseValue() throws BencodeException {
+    private Object parseValue(int depth) throws BencodeException {
+        if (depth > 50) {
+            throw new BencodeException("Maximum recursion depth exceeded");
+        }
         boolean isRoot = parsingRoot;
         parsingRoot = false; // Reset early so nested/subsequent values are not treated as root
         
@@ -77,9 +80,9 @@ public class BencodeDecoder {
         if (b == 'i') {
             return parseInteger();
         } else if (b == 'l') {
-            return parseList();
+            return parseList(depth);
         } else if (b == 'd') {
-            return parseDictionary(isRoot);
+            return parseDictionary(isRoot, depth);
         } else if (b >= '0' && b <= '9') {
             return parseString();
         } else {
@@ -171,19 +174,19 @@ public class BencodeDecoder {
         return stringBytes;
     }
 
-    private List<Object> parseList() throws BencodeException {
+    private List<Object> parseList(int depth) throws BencodeException {
         expect((byte) 'l');
         
         List<Object> list = new ArrayList<>();
         while (peek() != 'e') {
-            list.add(parseValue());
+            list.add(parseValue(depth + 1));
         }
         
         expect((byte) 'e');
         return list;
     }
 
-    private Map<String, Object> parseDictionary(boolean isRoot) throws BencodeException {
+    private Map<String, Object> parseDictionary(boolean isRoot, int depth) throws BencodeException {
         expect((byte) 'd');
         
         Map<String, Object> map = new LinkedHashMap<>();
@@ -212,7 +215,7 @@ public class BencodeDecoder {
                 infoStart = index;
             }
             
-            Object value = parseValue();
+            Object value = parseValue(depth + 1);
             
             if (isInfoKey) {
                 infoEnd = index;

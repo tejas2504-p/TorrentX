@@ -8,6 +8,8 @@ import java.nio.ByteBuffer;
 import com.torrentx.download.PieceAvailability;
 import com.torrentx.download.BlockSelector;
 import com.torrentx.download.PieceCompletionListener;
+import com.torrentx.download.PieceManager;
+import com.torrentx.download.DiskWriter;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -56,6 +58,14 @@ public class PeerManager implements AutoCloseable {
 
     public void setPieceAvailability(PieceAvailability pieceAvailability) {
         this.protocolHandler.setPieceAvailability(pieceAvailability);
+    }
+
+    public void setPieceManager(PieceManager pieceManager) {
+        this.protocolHandler.setPieceManager(pieceManager);
+    }
+
+    public void setDiskWriter(DiskWriter diskWriter) {
+        this.protocolHandler.setDiskWriter(diskWriter);
     }
 
     private BlockSelector blockSelector;

@@ -10,6 +10,7 @@ import com.torrentx.tracker.PeerInfo;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -26,6 +27,7 @@ public class DownloadManager implements PieceCompletionListener, AutoCloseable {
     private final PieceAssembler pieceAssembler;
     
     private final ScheduledExecutorService scheduler;
+    private final ExecutorService diskExecutor;
     private final DiskWriter diskWriter;
     private volatile boolean running;
     
@@ -48,6 +50,7 @@ public class DownloadManager implements PieceCompletionListener, AutoCloseable {
         this.pieceAssembler = pieceAssembler;
         this.diskWriter = diskWriter;
         this.scheduler = Executors.newSingleThreadScheduledExecutor();
+        this.diskExecutor = Executors.newFixedThreadPool(2);
         this.peerManager.setPieceCompletionListener(this);
     }
     
@@ -86,6 +89,7 @@ public class DownloadManager implements PieceCompletionListener, AutoCloseable {
     public void close() {
         running = false;
         scheduler.shutdownNow();
+        diskExecutor.shutdownNow();
     }
     
     private void downloadTask() {
@@ -182,7 +186,7 @@ public class DownloadManager implements PieceCompletionListener, AutoCloseable {
     @Override
     public void onPieceCompleted(int pieceIndex) {
         // Run piece assembly & verification async so we don't block the network reactor
-        scheduler.execute(() -> {
+        diskExecutor.execute(() -> {
             boolean valid = pieceAssembler.verifyPiece(pieceIndex);
             if (valid) {
                 LOGGER.info("Piece " + pieceIndex + " successfully verified!");

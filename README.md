@@ -1,112 +1,135 @@
 # TorrentX
 
-TorrentX is a high-performance, professional peer-to-peer BitTorrent client built from scratch in Java 21.
+TorrentX is a modern, high-performance BitTorrent client built entirely from scratch in Java 21. It focuses on thread safety, robust non-blocking networking (NIO), and memory efficiency while providing a clean, responsive desktop interface using JavaFX. 
 
-## 1. Project Overview
-TorrentX is designed to be a highly modular, clean, and efficient desktop BitTorrent client. The core engine coordinates torrent lifecycle states, network transport, disk storage, hash verification, and peer communication, all fronted by a modern, premium desktop user interface.
+TorrentX aims to provide a transparent, lightweight alternative to bloated commercial torrent clients while serving as a comprehensive educational reference for implementing complex decentralized networking protocols in modern Java.
 
-## 2. Problem Statement
-Many mainstream BitTorrent clients have become bloated, closed-source, resource-intensive, or cluttered with advertisements. Furthermore, many open-source clients lack a clear, modern separation of concerns, making it difficult for developers to learn from, extend, or audit the codebase for security. TorrentX addresses these problems by providing a clean-room, robust, fully documented, and strictly modular implementation in Java.
+## Features & Implementation Status
 
-## 3. Project Objectives
-- **Strict Modularity**: Maintain a clean architecture with low coupling between networking, storage, parsing, and UI layers.
-- **Resource Efficiency**: Use high-performance socket operations and random access disk storage to minimize CPU and RAM footprints.
-- **Robust Security**: Implement rigorous piece verification using SHA-1 cryptographic digests before storing files.
-- **Rich Developer Foundation**: Provide 100% test coverage for configurations, utilities, and core models to ensure reliability.
+### 🟢 Implemented (Core Engine)
+- **Bencode Parsing:** Defensive, memory-safe decoding with strict path-traversal prevention and recursion depth limits.
+- **Tracker Communication:** HTTP tracker announces with robust response parsing and peer list aggregation.
+- **NIO Peer Networking:** Non-blocking reactor pattern handling peer discovery, handshakes, and wire protocol state transitions without thread explosions.
+- **Piece Management:** Rarest-first piece selection strategy.
+- **Disk I/O:** Multi-file and single-file torrent storage writing with asynchronous bounds validation.
+- **Data Integrity:** Strict SHA-1 hashing of downloaded pieces.
+- **GUI Integration:** Real-time JavaFX dashboard with non-blocking metric polling.
 
-## 4. Planned Features
-- Full support for Bencode decoding and .torrent file parsing.
-- Dynamic tracker announcements via HTTP and UDP protocols.
-- BitTorrent peer wire protocol communication, including choke/interest handshakes.
-- Multi-file torrent downloads mapped directly to disk storage.
-- Premium JavaFX desktop GUI with real-time speed, progress, and peer metrics.
+### 🟡 Partially Implemented
+- **Upload Engine:** Connection and slot calculation is integrated, but the `ProtocolHandler` currently ignores outgoing `RequestMessage` servicing, meaning the application does not actively seed blocks to leechers yet.
+- **Bandwidth Management:** The architecture supports slot limits, but global `DownloadManager` bandwidth throttling (Rate Limiting / Token Bucket) is not yet enforced.
+- **Settings Persistence:** `config.properties` loads defaults, but dynamic user-modified states via the JavaFX GUI are not yet persisted back to disk.
 
-## 5. Technology Stack
-- **Language**: Java 21 LTS
-- **Build System**: Maven 3.9+
-- **GUI Framework**: JavaFX 21
-- **Unit Testing**: JUnit 5, Mockito
-- **Logging**: SLF4J with Logback
+### 🔴 Future Work (Not Implemented)
+- **DHT (Distributed Hash Table) & Magnet Links**
+- **UDP Tracker Protocol**
+- **FileChannel Caching / Memory-Mapped I/O** (To optimize disk writes).
 
-## 6. Architecture Overview
-TorrentX is structured into separate, decoupled packages to support high modularity:
-- **`com.torrentx.core`**: Core engine orchestrating components, state machines, and torrent session flow.
-- **`com.torrentx.torrent`**: Data structures representing .torrent metadata and bencode parsing.
-- **`com.torrentx.tracker`**: Communication protocol handlers for HTTP/UDP trackers.
-- **`com.torrentx.peer`**: BitTorrent peer protocol, connection states, choke/interest mechanisms, and handshakes.
-- **`com.torrentx.network`**: Low-level TCP and UDP network transport layers.
-- **`com.torrentx.storage`**: Random access file storage, piece verification, and multi-file mapping.
-- **`com.torrentx.security`**: SHA-1 cryptographic verifications and message digest operations.
-- **`com.torrentx.gui`**: User interface components, layout FXMLs, CSS, and interactive controllers (JavaFX).
-- **`com.torrentx.utils`**: General helper libraries, data formatting, configurations, and wrapper loggers.
+---
 
-## 7. Current Project Structure
-The directories match standard Maven project structures:
-```text
-TorrentX/
-├── pom.xml
-├── .gitignore
-├── README.md
-└── src/
-    ├── main/
-    │   ├── java/             # Source packages
-    │   │   └── com/torrentx/
-    │   │       ├── TorrentClient.java # Main application entry point
-    │   │       ├── bencode/  # Bencode placeholders
-    │   │       ├── core/     # Core lifecycle (ClientManager)
-    │   │       ├── gui/      # MainWindow, MainController, TorrentRow, TorrentXApp
-    │   │       ├── network/  # Message, ProtocolHandler, SocketManager
-    │   │       ├── peer/     # Peer, PeerConnection, PeerManager
-    │   │       ├── security/ # HashVerifier
-    │   │       ├── storage/  # FileManager, PieceStorage
-    │   │       ├── torrent/  # BencodeDecoder, TorrentMetadata, TorrentParser
-    │   │       ├── tracker/  # PeerInfo, TrackerClient
-    │   │       └── utils/    # Config, Logger
-    │   └── resources/        # Configuration and FXML layouts
-    │       ├── config.properties
-    │       ├── logback.xml
-    │       └── ui/           # main.fxml, main.css
-    └── test/
-        └── java/             # Complete matching unit test suite
-            └── com/torrentx/
-                ├── core/     # ClientManagerTest
-                ├── gui/      # TorrentRowTest
-                ├── network/  # MessageTest
-                ├── peer/     # PeerTest
-                ├── storage/  # FileManagerTest
-                ├── torrent/  # TorrentMetadataTest
-                ├── tracker/  # PeerInfoTest
-                └── utils/    # ConfigTest, LoggerTest
+## Technology Stack
+
+- **Core:** Java 21
+- **GUI Framework:** JavaFX
+- **Build System:** Apache Maven (3.8+)
+- **Testing:** JUnit 5, Mockito
+- **Networking:** Java NIO (`Selector`, `SocketChannel`)
+
+---
+
+## Architecture Overview
+
+TorrentX employs a strict separation of concerns, ensuring the UI thread is completely decoupled from the BitTorrent engine.
+
+```mermaid
+graph TD
+    UI[JavaFX GUI] --> |Start/Stop Commands| TS[TorrentService]
+    TS --> |Polls Metrics| AT[ActiveTorrent Wrapper]
+    
+    AT --> DM[DownloadManager]
+    AT --> PM[PeerManager NIO Reactor]
+    
+    PM --> |Peer Payload| PH[ProtocolHandler]
+    PH --> |Block Received| DM
+    
+    DM --> |Verify Hash| PA[PieceAssembler]
+    PA --> |Write Data| DW[DiskWriter]
 ```
+*(For a deeper dive into component internals, see [ARCHITECTURE.md](ARCHITECTURE.md))*
 
-## 8. Current Project Status
-### **Phase 1 — Project Setup and Architecture (Completed)**
-All core packages, class files, and interface structures representing the TorrentX architecture have been successfully created and linked. 
-- **Configuration Foundation**: Integrated `config.properties` loading with validation constraints.
-- **Logging Foundation**: Integrated logback wrapper for Info/Debug/Warn/Error configurations.
-- **Testing Foundation**: Structured JUnit 5 tests covering all core initializers and data structures.
+---
 
-## 9. Development Roadmap
-- **Phase 1 — Project Setup and Architecture** (Completed)
-- **Phase 2 — Torrent Parsing and Bencode Decoding** (Planned)
-- **Phase 3 — Network Transport and Peer Wire Protocol** (Planned)
-- **Phase 4 — Storage, File Mapping, and Verification** (Planned)
-- **Phase 5 — GUI Desktop Application and Final Release** (Planned)
+## The BitTorrent Workflow
 
-## 10. Build Instructions
-To clean and compile the project, run:
+1. **Add Torrent:** The `.torrent` file is selected via the GUI and parsed into a `TorrentMetadata` object.
+2. **Tracker Announce:** `TrackerClient` contacts the HTTP announce URL and receives a swarm of `PeerInfo` IPs and ports.
+3. **Peer Handshake:** `PeerManager` initiates non-blocking sockets. Upon connection, the BitTorrent Handshake is exchanged.
+4. **Bitfield Exchange:** Peers exchange bitfields, updating `PieceAvailability` maps.
+5. **Rarest-First Request:** `DownloadManager` selects the rarest pieces and queues 16KB `RequestMessage` blocks.
+6. **SHA-1 Verification:** As blocks arrive via `ProtocolHandler`, they are assembled. Once a piece is full, `PieceAssembler` validates the hash.
+7. **Disk Write:** Verified pieces are piped to `DiskWriter` which safely maps the data into the correct multi-file paths.
+8. **Seeding (Partial):** Upon completion, the client remains connected, maintaining "Seeding" state.
+
+---
+
+## Installation & Setup
+
+### Requirements
+- JDK 21+ installed and active on your system PATH.
+- Apache Maven 3.8+ installed.
+
+### Build Instructions
+Clone the repository and build the project using Maven:
 ```bash
-mvn clean compile
+git clone https://github.com/yourusername/TorrentX.git
+cd TorrentX
+mvn clean install
 ```
 
-## 11. Test Instructions
-To run the full test suite (26 unit tests):
+### Run Instructions
+Launch the JavaFX desktop application directly via Maven:
 ```bash
-mvn test
+mvn javafx:run
+```
+*(Alternatively, run the packaged shaded `.jar` if configured in the POM).*
+
+---
+
+## Usage Guide
+
+1. **How to add a torrent:** Click the "Add Torrent" button in the toolbar. Select a `.torrent` file from your system, verify the parsed metadata in the dialog, and confirm the target download directory.
+2. **How downloading works:** Once added, the torrent is registered with the `TorrentService` and enters the `QUEUED` state. Press "Start" to ignite the `DownloadManager` and `PeerManager` reactor. Progress is updated asynchronously in the GUI.
+3. **How uploading & seeding works:** Currently, TorrentX will establish incoming peer connections and transition to a `SEEDING` status upon 100% download completion. Active outbound data serving is queued for future releases.
+
+---
+
+## Configuration
+
+TorrentX reads defaults from `src/main/resources/config.properties`.
+You can configure system limits programmatically before engine start:
+- `maxConnections`: Limits NIO sockets (default: 50).
+- `maxUploadSlots`: Limits actively uploading peers.
+- `downloadDirectory`: The default absolute root path for downloaded files.
+
+---
+
+## Security & Reliability
+
+TorrentX treats all network payloads and `.torrent` files as highly untrusted inputs:
+- **Bencode Hardening:** Protected against "Billion Laughs" stack overflow attacks with explicit recursion depth limits.
+- **Path Traversal:** Rejects malicious `.torrent` multi-file paths attempting to use `.` or `..` or directory separators to escape the download sandbox.
+- **Overflow Prevention:** Peer messages utilizing unbounded 32-bit offset/length bounds are strictly guarded against integer overflows before processing.
+- **Thread Safety:** The system explicitly avoids "Thread-per-Peer" bottlenecks via the NIO `Selector` pattern.
+
+---
+
+## Testing
+
+The project includes an extensive suite of over 330 unit and integration tests.
+```bash
+mvn clean test
 ```
 
-## 12. Future Enhancements
-- Distributed Hash Table (DHT) support for trackerless torrents.
-- Peer Exchange (PEX) and Magnet link support.
-- Encrypted peer protocol handshakes (MSE/PE).
-- Granular speed limiting and disk caching.
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
