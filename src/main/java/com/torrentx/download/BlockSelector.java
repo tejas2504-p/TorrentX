@@ -61,11 +61,14 @@ public class BlockSelector {
         // Synchronize on the piece to safely inspect block request states
         synchronized (piece) {
             if (pieceManager.isPieceComplete(pieceIndex) || piece.getState() == PieceState.VERIFYING || piece.getState() == PieceState.VERIFIED) {
+                System.out.println("selectBlocks returning empty because piece is complete or verifying. State: " + piece.getState());
                 return newRequests;
             }
             
+            int unrequestedCount = 0;
             for (Block block : piece.getBlocks()) {
                 if (!block.isRequested()) {
+                    unrequestedCount++;
                     String key = requestKey(pieceIndex, block.getOffset());
                     
                     // Double check it's not somehow in our in-flight map
@@ -82,6 +85,7 @@ public class BlockSelector {
                     }
                 }
             }
+            System.out.println("selectBlocks for piece " + pieceIndex + " found " + unrequestedCount + " unrequested blocks. Returning " + newRequests.size() + " requests.");
         }
         
         return newRequests;

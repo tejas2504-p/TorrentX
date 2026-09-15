@@ -155,18 +155,17 @@ public class DownloadManager implements PieceCompletionListener, AutoCloseable {
         PeerInfo peerInfo = connection.getPeerInfo();
         System.out.println("Trying to request blocks from " + peerInfo + " (isChokingMe: " + connection.getPeerState().isChokingMe() + ")");
         
-        // Very basic strategy: find first missing piece this peer has
         for (int i = 0; i < pieceManager.getLayout().getTotalPieces(); i++) {
             if (!pieceManager.isPieceComplete(i) && pieceAvailability.peerHasPiece(peerInfo, i)) {
-                // Request first block of this piece (simplified for Phase 8)
-                // Assuming block length is piece size or smaller
-                int blockSize = Math.min(16384, pieceManager.getLayout().getPiece(i).getLength());
-                
-                System.out.println("Requesting piece " + i + " block offset 0 length " + blockSize + " from " + peerInfo);
-                
-                RequestMessage requestMessage = new RequestMessage(i, 0, blockSize);
-                connection.writeData(requestMessage.toByteBuffer());
-                break; // Only request one block at a time for now
+                List<BlockRequest> requests = blockSelector.selectBlocks(peerInfo, i);
+                for (BlockRequest req : requests) {
+                    System.out.println("Requesting piece " + req.getPieceIndex() + " block offset " + req.getOffset() + " length " + req.getLength() + " from " + peerInfo);
+                    RequestMessage requestMessage = new RequestMessage(req.getPieceIndex(), req.getOffset(), req.getLength());
+                    connection.writeData(requestMessage.toByteBuffer());
+                }
+                if (!requests.isEmpty()) {
+                    break;
+                }
             }
         }
     }
