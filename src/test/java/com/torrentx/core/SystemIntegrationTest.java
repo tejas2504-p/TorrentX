@@ -98,8 +98,8 @@ class SystemIntegrationTest {
     @Test
     void testEndToEndUploadAndDownload() throws Exception {
         // --- Setup Seeder ---
-        TorrentLayout layout = new TorrentLayout(metadata, 16384); // 16KB blocks
-        seederPieceManager = new PieceManager(layout);
+        TorrentLayout seederLayout = new TorrentLayout(metadata, 16384); // 16KB blocks
+        seederPieceManager = new PieceManager(seederLayout);
         // Seeder starts with 100% completed pieces
         byte[] fullData = Files.readAllBytes(seederDir.resolve("testfile.dat"));
         seederPieceManager.markBlockRequested(0, 0, 16384);
@@ -138,7 +138,8 @@ class SystemIntegrationTest {
         seederDownloadManager.start();
 
         // --- Setup Leecher ---
-        leecherPieceManager = new PieceManager(layout);
+        TorrentLayout leecherLayout = new TorrentLayout(metadata, 16384); // 16KB blocks
+        leecherPieceManager = new PieceManager(leecherLayout);
         leecherDiskWriter = new DiskWriter(metadata, leecherDir);
         PieceAvailability leecherAvailability = new PieceAvailability(2);
         PieceAssembler leecherAssembler = new PieceAssembler(leecherPieceManager);
@@ -170,6 +171,7 @@ class SystemIntegrationTest {
         // Wait for download to complete
         long startTime = System.currentTimeMillis();
         boolean success = false;
+        boolean bitfieldSent = false;
         
         while (System.currentTimeMillis() - startTime < 10000) { // 10s timeout
             if (leecherDownloadManager.isComplete()) {
@@ -181,16 +183,19 @@ class SystemIntegrationTest {
             
             // Note: because Seeder doesn't automatically broadcast its bitfield without logic we bypassed,
             // we will simulate the seeder's HAVE messages so leecher knows it has pieces.
-            for (com.torrentx.peer.PeerConnection conn : seederPeerManager.getConnectedPeers()) {
-                if (conn.getState() == com.torrentx.peer.PeerConnectionState.READY) {
-                    // Send bitfield
-                    byte[] bitfield = new byte[] { (byte) 0xC0 }; // 11000000 -> pieces 0, 1
-                    java.nio.ByteBuffer bb = java.nio.ByteBuffer.allocate(5 + 1);
-                    bb.putInt(2);
-                    bb.put((byte) 5);
-                    bb.put(bitfield);
-                    bb.flip();
-                    conn.writeData(bb);
+            if (!bitfieldSent) {
+                for (com.torrentx.peer.PeerConnection conn : seederPeerManager.getConnectedPeers()) {
+                    if (conn.getState() == com.torrentx.peer.PeerConnectionState.READY) {
+                        // Send bitfield
+                        byte[] bitfield = new byte[] { (byte) 0xC0 }; // 11000000 -> pieces 0, 1
+                        java.nio.ByteBuffer bb = java.nio.ByteBuffer.allocate(5 + 1);
+                        bb.putInt(2);
+                        bb.put((byte) 5);
+                        bb.put(bitfield);
+                        bb.flip();
+                        conn.writeData(bb);
+                        bitfieldSent = true;
+                    }
                 }
             }
         }

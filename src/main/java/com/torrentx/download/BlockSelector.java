@@ -96,7 +96,7 @@ public class BlockSelector {
         BlockRequest req = inFlightRequests.get(key);
         
         if (req == null) {
-            System.err.println("req is null for key: " + key);
+            System.err.println("req is null for key: " + key + " pieceIndex=" + pieceIndex + " offset=" + offset);
             return false; // Unsolicited or timed-out request
         }
         
@@ -121,6 +121,7 @@ public class BlockSelector {
         try {
             return pieceManager.markBlockReceived(pieceIndex, offset, data);
         } catch (IllegalArgumentException | IllegalStateException e) {
+            System.err.println("Exception in markBlockReceived: " + e.getMessage());
             // Already verified length and in-flight status, so this shouldn't normally happen
             return false;
         }

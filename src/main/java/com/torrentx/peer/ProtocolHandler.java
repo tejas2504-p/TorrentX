@@ -194,6 +194,7 @@ public class ProtocolHandler {
                     if (blockSelector != null) {
                         boolean completed = blockSelector.markBlockReceived(connection.getPeerInfo(), pieceMessage.getPieceIndex(), 
                                 pieceMessage.getBlockOffset(), pieceMessage.getBlockData());
+                        System.out.println("DEBUG markBlockReceived returned " + completed + " listener=" + pieceCompletionListener);
                         if (completed && pieceCompletionListener != null) {
                             pieceCompletionListener.onPieceCompleted(pieceMessage.getPieceIndex());
                         }

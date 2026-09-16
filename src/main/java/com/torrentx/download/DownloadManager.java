@@ -182,33 +182,39 @@ public class DownloadManager implements PieceCompletionListener, AutoCloseable {
     public void onPieceCompleted(int pieceIndex) {
         // Run piece assembly & verification async so we don't block the network reactor
         diskExecutor.execute(() -> {
-            boolean valid = pieceAssembler.verifyPiece(pieceIndex);
-            if (valid) {
-                LOGGER.info("Piece " + pieceIndex + " successfully verified!");
-                try {
-                    byte[] data = pieceManager.getCompletedPieceData(pieceIndex);
-                    if (diskWriter != null && data != null) {
-                        diskWriter.writePiece(pieceIndex, data);
+            try {
+                System.out.println("diskExecutor starting verification for piece " + pieceIndex);
+                boolean valid = pieceAssembler.verifyPiece(pieceIndex);
+                if (valid) {
+                    LOGGER.info("Piece " + pieceIndex + " successfully verified!");
+                    try {
+                        byte[] data = pieceManager.getCompletedPieceData(pieceIndex);
+                        if (diskWriter != null && data != null) {
+                            diskWriter.writePiece(pieceIndex, data);
+                        }
+                        pieceManager.releaseCompletedPieceData(pieceIndex);
+                        LOGGER.info("Piece " + pieceIndex + " written to disk.");
+                        
+                        downloadedBytes.addAndGet(pieceManager.getLayout().getPiece(pieceIndex).getLength());
+                        int totalPieces = pieceManager.getLayout().getTotalPieces();
+                        int currentCompleted = completedPieces.incrementAndGet();
+                        
+                        LOGGER.info(String.format("Download Progress: %.2f%% (%d/%d pieces)", 
+                            (currentCompleted * 100.0) / totalPieces, currentCompleted, totalPieces));
+                        
+                        if (currentCompleted == totalPieces) {
+                            LOGGER.info("TORRENT DOWNLOAD COMPLETE!");
+                        }
+                    } catch (IOException e) {
+                        LOGGER.log(java.util.logging.Level.SEVERE, "Failed to write piece " + pieceIndex, e);
+                        pieceManager.markPieceFailed(pieceIndex);
                     }
-                    pieceManager.releaseCompletedPieceData(pieceIndex);
-                    LOGGER.info("Piece " + pieceIndex + " written to disk.");
-                    
-                    downloadedBytes.addAndGet(pieceManager.getLayout().getPiece(pieceIndex).getLength());
-                    int totalPieces = pieceManager.getLayout().getTotalPieces();
-                    int currentCompleted = completedPieces.incrementAndGet();
-                    
-                    LOGGER.info(String.format("Download Progress: %.2f%% (%d/%d pieces)", 
-                        (currentCompleted * 100.0) / totalPieces, currentCompleted, totalPieces));
-                    
-                    if (currentCompleted == totalPieces) {
-                        LOGGER.info("TORRENT DOWNLOAD COMPLETE!");
-                    }
-                } catch (IOException e) {
-                    LOGGER.log(java.util.logging.Level.SEVERE, "Failed to write piece " + pieceIndex, e);
-                    pieceManager.markPieceFailed(pieceIndex);
+                } else {
+                    LOGGER.warning("Piece " + pieceIndex + " failed verification!");
                 }
-            } else {
-                LOGGER.warning("Piece " + pieceIndex + " failed verification!");
+            } catch (Throwable t) {
+                System.err.println("diskExecutor THREW THROWABLE for piece " + pieceIndex);
+                t.printStackTrace();
             }
         });
     }
