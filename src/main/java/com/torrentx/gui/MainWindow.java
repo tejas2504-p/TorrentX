@@ -37,10 +37,10 @@ public class MainWindow {
         MainController controller = loader.getController();
         controller.setTorrentService(torrentService);
         
-        Scene scene = new Scene(root, 950, 600);
+        Scene scene = new Scene(root, 1280, 800);
         scene.getStylesheets().add(getClass().getResource("/ui/main.css").toExternalForm());
         
-        stage.setTitle("TorrentX - Premium BitTorrent Client");
+        stage.setTitle("TorrentX");
         stage.setScene(scene);
         stage.show();
     }

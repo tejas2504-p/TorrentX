@@ -67,9 +67,9 @@ public class TorrentService {
                 
                 Platform.runLater(() -> {
                     TorrentRow row = new TorrentRow(
-                        metadata.getName(), "STOPPED", 0.0, 
+                        metadata.getName(), "QUEUED", 0.0, 
                         "0 KB/s", "0 KB/s", "0 B", "0 B", 
-                        formatBytes(metadata.getTotalLength()), "∞", "0"
+                        formatBytes(metadata.getTotalLength()), "∞", "0", "0.00"
                     );
                     
                     ActiveTorrent activeTorrent = new ActiveTorrent(metadata, saveDir.toPath(), row);

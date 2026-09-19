@@ -4,72 +4,309 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Text?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.shape.SVGPath?>
+<?import javafx.scene.chart.AreaChart?>
+<?import javafx.scene.chart.NumberAxis?>
 
 <BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.torrentx.gui.MainController" styleClass="root-pane">
-    <top>
-        <HBox spacing="15" alignment="CENTER_LEFT" styleClass="header-bar">
-            <padding>
-                <Insets top="15" right="20" bottom="15" left="20"/>
-            </padding>
-            <Text text="TorrentX" styleClass="logo-text"/>
-            <Region HBox.hgrow="ALWAYS"/>
-            <Button text="+ Add Torrent" onAction="#handleAddTorrent" styleClass="btn, btn-primary"/>
-            <Button text="Start" onAction="#handleStart" styleClass="btn, btn-secondary"/>
-            <Button text="Pause" onAction="#handlePause" styleClass="btn, btn-secondary"/>
-            <Button text="Resume" onAction="#handleResume" styleClass="btn, btn-secondary"/>
-            <Button text="Stop" onAction="#handleStop" styleClass="btn, btn-secondary"/>
-            <Button text="Remove" onAction="#handleRemove" styleClass="btn, btn-danger"/>
-        </HBox>
-    </top>
     
-    <center>
-        <SplitPane dividerPositions="0.22" styleClass="content-pane">
-            <items>
-                <!-- Sidebar -->
-                <VBox spacing="10" styleClass="sidebar">
-                    <padding>
-                        <Insets top="15" right="10" bottom="15" left="15"/>
-                    </padding>
-                    <Label text="LIBRARY" styleClass="sidebar-title"/>
-                    <Button text="All Torrents" styleClass="sidebar-btn, active"/>
-                    <Button text="Downloading" styleClass="sidebar-btn"/>
-                    <Button text="Completed" styleClass="sidebar-btn"/>
-                    <Button text="Active" styleClass="sidebar-btn"/>
+    <!-- LEFT SIDEBAR -->
+    <left>
+        <VBox spacing="5" styleClass="sidebar">
+            <padding>
+                <Insets top="20" right="15" bottom="20" left="15"/>
+            </padding>
+            
+            <!-- Logo -->
+            <HBox alignment="CENTER_LEFT" spacing="10" styleClass="logo-container">
+                <padding><Insets bottom="15"/></padding>
+                <Region styleClass="logo-icon"/>
+                <VBox>
+                    <Text text="TorrentX" styleClass="logo-text"/>
+                    <Text text="Download Without Limits" styleClass="logo-subtext"/>
                 </VBox>
-                
-                <!-- Main Table -->
-                <VBox spacing="10" styleClass="table-container">
+            </HBox>
+            
+            <!-- Library Menu -->
+            <Button text="All Torrents" styleClass="sidebar-btn, active">
+                <graphic><Region styleClass="icon-all"/></graphic>
+            </Button>
+            <Button text="Downloading" styleClass="sidebar-btn">
+                <graphic><Region styleClass="icon-down"/></graphic>
+            </Button>
+            <Button text="Completed" styleClass="sidebar-btn">
+                <graphic><Region styleClass="icon-check"/></graphic>
+            </Button>
+            <Button text="Active" styleClass="sidebar-btn">
+                <graphic><Region styleClass="icon-active"/></graphic>
+            </Button>
+            <Button text="Inactive" styleClass="sidebar-btn">
+                <graphic><Region styleClass="icon-inactive"/></graphic>
+            </Button>
+            
+            <Region VBox.vgrow="ALWAYS" maxHeight="20"/>
+            
+            <!-- Categories -->
+            <Label text="CATEGORIES" styleClass="sidebar-title"/>
+            <Button text="Movies" styleClass="sidebar-btn">
+                <graphic><Region styleClass="icon-movies"/></graphic>
+            </Button>
+            <Button text="TV Shows" styleClass="sidebar-btn">
+                <graphic><Region styleClass="icon-tv"/></graphic>
+            </Button>
+            <Button text="Games" styleClass="sidebar-btn">
+                <graphic><Region styleClass="icon-games"/></graphic>
+            </Button>
+            <Button text="Software" styleClass="sidebar-btn">
+                <graphic><Region styleClass="icon-software"/></graphic>
+            </Button>
+            <Button text="Music" styleClass="sidebar-btn">
+                <graphic><Region styleClass="icon-music"/></graphic>
+            </Button>
+            <Button text="Other" styleClass="sidebar-btn">
+                <graphic><Region styleClass="icon-other"/></graphic>
+            </Button>
+            
+            <Region VBox.vgrow="ALWAYS"/>
+            
+            <!-- Disk Usage -->
+            <VBox spacing="5" styleClass="disk-usage-box">
+                <Text text="Disk Usage" styleClass="disk-title"/>
+                <Text text="245 GB free of 931 GB" styleClass="disk-subtitle"/>
+                <HBox alignment="CENTER_LEFT" spacing="5">
+                    <ProgressBar progress="0.74" prefWidth="150" styleClass="disk-progress"/>
+                    <Text text="74%" styleClass="disk-percent"/>
+                </HBox>
+            </VBox>
+            
+            <!-- Upgrade Box -->
+            <VBox spacing="10" styleClass="upgrade-box">
+                <HBox alignment="CENTER_LEFT" spacing="10">
+                    <Region styleClass="icon-crown"/>
+                    <Text text="TorrentX Pro" styleClass="upgrade-title"/>
+                </HBox>
+                <Text text="Faster downloads. No ads.&#10;Support development." styleClass="upgrade-subtitle" wrappingWidth="150"/>
+                <Button text="Upgrade to Pro" styleClass="btn-upgrade"/>
+            </VBox>
+            
+            <Button text="Settings" styleClass="sidebar-btn, settings-btn">
+                <graphic><Region styleClass="icon-settings"/></graphic>
+            </Button>
+        </VBox>
+    </left>
+    
+    <!-- CENTER MAIN CONTENT -->
+    <center>
+        <BorderPane styleClass="main-content-pane">
+            <top>
+                <VBox spacing="20">
                     <padding>
-                        <Insets top="15" right="15" bottom="15" left="15"/>
+                        <Insets top="20" right="20" bottom="0" left="20"/>
+                    </padding>
+                    
+                    <!-- Top Toolbar -->
+                    <HBox alignment="CENTER_LEFT" spacing="10">
+                        <HBox alignment="CENTER_LEFT" spacing="10" styleClass="search-box">
+                            <Region styleClass="icon-search"/>
+                            <TextField promptText="Search torrents, magnet links or paste URL..." styleClass="search-field" prefWidth="350"/>
+                            <Label text="Ctrl + K" styleClass="shortcut-label"/>
+                        </HBox>
+                        
+                        <Region HBox.hgrow="ALWAYS"/>
+                        
+                        <Button text="+ Add Torrent" onAction="#handleAddTorrent" styleClass="btn, btn-primary"/>
+                        <Button text="Start" onAction="#handleStart" styleClass="btn, btn-action">
+                            <graphic><Region styleClass="icon-play"/></graphic>
+                        </Button>
+                        <Button text="Pause" onAction="#handlePause" styleClass="btn, btn-action">
+                            <graphic><Region styleClass="icon-pause"/></graphic>
+                        </Button>
+                        <Button text="Stop" onAction="#handleStop" styleClass="btn, btn-action">
+                            <graphic><Region styleClass="icon-stop"/></graphic>
+                        </Button>
+                        <Button text="Remove" onAction="#handleRemove" styleClass="btn, btn-action, btn-danger-action">
+                            <graphic><Region styleClass="icon-trash"/></graphic>
+                        </Button>
+                        <Button styleClass="btn, btn-action">
+                            <graphic><Region styleClass="icon-more"/></graphic>
+                        </Button>
+                    </HBox>
+                    
+                    <!-- Stats Dashboard Row -->
+                    <HBox spacing="15" alignment="CENTER_LEFT">
+                        <HBox spacing="10" styleClass="stat-card" HBox.hgrow="ALWAYS">
+                            <Region styleClass="stat-icon, icon-down-circle"/>
+                            <VBox spacing="2" alignment="CENTER_LEFT">
+                                <Text text="Download Speed" styleClass="stat-title"/>
+                                <Text text="0 MB/s" fx:id="statDownSpeed" styleClass="stat-value"/>
+                            </VBox>
+                            <Region HBox.hgrow="ALWAYS"/>
+                            <Region styleClass="sparkline, sparkline-green"/>
+                        </HBox>
+                        <HBox spacing="10" styleClass="stat-card" HBox.hgrow="ALWAYS">
+                            <Region styleClass="stat-icon, icon-up-circle"/>
+                            <VBox spacing="2" alignment="CENTER_LEFT">
+                                <Text text="Upload Speed" styleClass="stat-title"/>
+                                <Text text="0 MB/s" fx:id="statUpSpeed" styleClass="stat-value"/>
+                            </VBox>
+                            <Region HBox.hgrow="ALWAYS"/>
+                            <Region styleClass="sparkline, sparkline-blue"/>
+                        </HBox>
+                        <HBox spacing="10" styleClass="stat-card" HBox.hgrow="ALWAYS">
+                            <Region styleClass="stat-icon, icon-nodes"/>
+                            <VBox spacing="2" alignment="CENTER_LEFT">
+                                <Text text="Active Torrents" styleClass="stat-title"/>
+                                <Text text="0 / 0" fx:id="statActive" styleClass="stat-value"/>
+                            </VBox>
+                        </HBox>
+                        <HBox spacing="10" styleClass="stat-card" HBox.hgrow="ALWAYS">
+                            <Region styleClass="stat-icon, icon-hdd"/>
+                            <VBox spacing="2" alignment="CENTER_LEFT">
+                                <Text text="Total Downloaded" styleClass="stat-title"/>
+                                <Text text="0 GB" fx:id="statTotalDown" styleClass="stat-value"/>
+                            </VBox>
+                        </HBox>
+                        <HBox spacing="10" styleClass="stat-card" HBox.hgrow="ALWAYS">
+                            <Region styleClass="stat-icon, icon-cloud"/>
+                            <VBox spacing="2" alignment="CENTER_LEFT">
+                                <Text text="Total Uploaded" styleClass="stat-title"/>
+                                <Text text="0 GB" fx:id="statTotalUp" styleClass="stat-value"/>
+                            </VBox>
+                        </HBox>
+                    </HBox>
+                </VBox>
+            </top>
+            
+            <center>
+                <VBox spacing="10">
+                    <padding>
+                        <Insets top="20" right="20" bottom="20" left="20"/>
                     </padding>
                     <TableView fx:id="torrentTable" VBox.vgrow="ALWAYS" styleClass="torrent-table">
                         <columns>
+                            <TableColumn fx:id="idColumn" text="#" prefWidth="40"/>
                             <TableColumn fx:id="nameColumn" text="Name" prefWidth="250"/>
-                            <TableColumn fx:id="statusColumn" text="Status" prefWidth="90"/>
+                            <TableColumn fx:id="statusColumn" text="Status" prefWidth="120"/>
                             <TableColumn fx:id="progressColumn" text="Progress" prefWidth="150"/>
-                            <TableColumn fx:id="downSpeedColumn" text="Down Speed" prefWidth="90"/>
-                            <TableColumn fx:id="upSpeedColumn" text="Up Speed" prefWidth="90"/>
+                            <TableColumn fx:id="sizeColumn" text="Size" prefWidth="80"/>
                             <TableColumn fx:id="downloadedColumn" text="Downloaded" prefWidth="90"/>
                             <TableColumn fx:id="uploadedColumn" text="Uploaded" prefWidth="90"/>
-                            <TableColumn fx:id="sizeColumn" text="Total Size" prefWidth="90"/>
+                            <TableColumn fx:id="downSpeedColumn" text="Down Speed" prefWidth="90"/>
+                            <TableColumn fx:id="upSpeedColumn" text="Up Speed" prefWidth="90"/>
                             <TableColumn fx:id="etaColumn" text="ETA" prefWidth="80"/>
-                            <TableColumn fx:id="peersColumn" text="Peers" prefWidth="80"/>
+                            <TableColumn fx:id="ratioColumn" text="Ratio" prefWidth="60"/>
+                            <TableColumn fx:id="addedColumn" text="Added" prefWidth="100"/>
                         </columns>
                     </TableView>
                 </VBox>
-            </items>
-        </SplitPane>
+            </center>
+            
+            <bottom>
+                <VBox styleClass="details-pane">
+                    <HBox spacing="20" styleClass="tabs-container">
+                        <padding><Insets left="20" top="10"/></padding>
+                        <Label text="General" styleClass="tab-label, active"/>
+                        <Label text="Trackers" styleClass="tab-label"/>
+                        <Label text="Peers" styleClass="tab-label"/>
+                        <Label text="Files" styleClass="tab-label"/>
+                        <Label text="Speed" styleClass="tab-label"/>
+                        <Label text="Logger" styleClass="tab-label"/>
+                    </HBox>
+                    <Separator styleClass="tab-separator"/>
+                    
+                    <HBox spacing="30">
+                        <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+                        
+                        <!-- Left Info Details -->
+                        <VBox spacing="20" HBox.hgrow="ALWAYS" minWidth="400">
+                            <HBox spacing="15" alignment="CENTER_LEFT">
+                                <Region styleClass="file-icon-large"/>
+                                <VBox spacing="5">
+                                    <Text text="Selected Torrent Name" fx:id="detailName" styleClass="detail-title"/>
+                                    <Text text="C:/Users/tejas/Downloads" fx:id="detailPath" styleClass="detail-path"/>
+                                </VBox>
+                            </HBox>
+                            <HBox spacing="10" alignment="CENTER_LEFT">
+                                <ProgressBar progress="0" fx:id="detailProgress" prefWidth="300" styleClass="detail-progress-bar"/>
+                                <Text text="0%" fx:id="detailProgressText" styleClass="detail-progress-text"/>
+                            </HBox>
+                            <GridPane hgap="40" vgap="10">
+                                <Text text="Status" GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="detail-label"/>
+                                <Text text="-" fx:id="detailStatus" GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="detail-value, text-blue"/>
+                                
+                                <Text text="ETA" GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="detail-label"/>
+                                <Text text="-" fx:id="detailEta" GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="detail-value"/>
+                                
+                                <Text text="Size" GridPane.columnIndex="0" GridPane.rowIndex="2" styleClass="detail-label"/>
+                                <Text text="-" fx:id="detailSize" GridPane.columnIndex="1" GridPane.rowIndex="2" styleClass="detail-value"/>
+                                
+                                <Text text="Downloaded" GridPane.columnIndex="0" GridPane.rowIndex="3" styleClass="detail-label"/>
+                                <Text text="-" fx:id="detailDown" GridPane.columnIndex="1" GridPane.rowIndex="3" styleClass="detail-value"/>
+                                
+                                <Text text="Uploaded" GridPane.columnIndex="0" GridPane.rowIndex="4" styleClass="detail-label"/>
+                                <Text text="-" fx:id="detailUp" GridPane.columnIndex="1" GridPane.rowIndex="4" styleClass="detail-value"/>
+                                
+                                <Text text="Seeds" GridPane.columnIndex="2" GridPane.rowIndex="0" styleClass="detail-label"/>
+                                <Text text="-" fx:id="detailSeeds" GridPane.columnIndex="3" GridPane.rowIndex="0" styleClass="detail-value"/>
+                                
+                                <Text text="Peers" GridPane.columnIndex="2" GridPane.rowIndex="1" styleClass="detail-label"/>
+                                <Text text="-" fx:id="detailPeers" GridPane.columnIndex="3" GridPane.rowIndex="1" styleClass="detail-value"/>
+                                
+                                <Text text="Ratio" GridPane.columnIndex="2" GridPane.rowIndex="2" styleClass="detail-label"/>
+                                <Text text="-" fx:id="detailRatio" GridPane.columnIndex="3" GridPane.rowIndex="2" styleClass="detail-value"/>
+                                
+                                <Text text="Availability" GridPane.columnIndex="2" GridPane.rowIndex="3" styleClass="detail-label"/>
+                                <Text text="-" fx:id="detailAvail" GridPane.columnIndex="3" GridPane.rowIndex="3" styleClass="detail-value"/>
+                                
+                                <Text text="Added On" GridPane.columnIndex="2" GridPane.rowIndex="4" styleClass="detail-label"/>
+                                <Text text="-" fx:id="detailAdded" GridPane.columnIndex="3" GridPane.rowIndex="4" styleClass="detail-value"/>
+                            </GridPane>
+                        </VBox>
+                        
+                        <!-- Right Graph (Placeholder area for chart) -->
+                        <VBox spacing="10" HBox.hgrow="ALWAYS">
+                            <HBox alignment="CENTER_LEFT" spacing="15">
+                                <Text text="Speed" styleClass="chart-title"/>
+                                <Region HBox.hgrow="ALWAYS"/>
+                                <HBox alignment="CENTER_LEFT" spacing="5">
+                                    <Region styleClass="legend-dot-green"/>
+                                    <Text text="Download" styleClass="legend-text"/>
+                                </HBox>
+                                <HBox alignment="CENTER_LEFT" spacing="5">
+                                    <Region styleClass="legend-dot-blue"/>
+                                    <Text text="Upload" styleClass="legend-text"/>
+                                </HBox>
+                                <ComboBox promptText="Real Time" styleClass="chart-combo"/>
+                            </HBox>
+                            <AreaChart fx:id="speedChart" prefHeight="200" createSymbols="false" styleClass="speed-chart">
+                                <xAxis><NumberAxis tickLabelsVisible="false" minorTickVisible="false" styleClass="chart-axis"/></xAxis>
+                                <yAxis><NumberAxis minorTickVisible="false" styleClass="chart-axis"/></yAxis>
+                            </AreaChart>
+                            
+                            <HBox alignment="CENTER_LEFT" spacing="20">
+                                <HBox alignment="CENTER_LEFT" spacing="5">
+                                    <Region styleClass="legend-dot-green"/>
+                                    <Text text="DHT: 326 nodes" styleClass="footer-text"/>
+                                </HBox>
+                                <HBox alignment="CENTER_LEFT" spacing="5">
+                                    <Region styleClass="icon-down-arrow-small"/>
+                                    <Text text="0 KB/s" fx:id="footerDown" styleClass="footer-text"/>
+                                </HBox>
+                                <HBox alignment="CENTER_LEFT" spacing="5">
+                                    <Region styleClass="icon-up-arrow-small"/>
+                                    <Text text="0 KB/s" fx:id="footerUp" styleClass="footer-text"/>
+                                </HBox>
+                                <Region HBox.hgrow="ALWAYS"/>
+                                <HBox alignment="CENTER_LEFT" spacing="5">
+                                    <Region styleClass="icon-globe"/>
+                                    <Text text="Connected" styleClass="footer-text"/>
+                                </HBox>
+                            </HBox>
+                        </VBox>
+                    </HBox>
+                </VBox>
+            </bottom>
+        </BorderPane>
     </center>
-    
-    <bottom>
-        <HBox spacing="20" alignment="CENTER_LEFT" styleClass="status-bar">
-            <padding>
-                <Insets top="8" right="20" bottom="8" left="20"/>
-            </padding>
-            <Label text="Status: Connected" styleClass="status-label"/>
-            <Region HBox.hgrow="ALWAYS"/>
-            <Label fx:id="globalSpeedLabel" text="Download: 0 KB/s  |  Upload: 0 KB/s" styleClass="status-label"/>
-        </HBox>
-    </bottom>
 </BorderPane>
